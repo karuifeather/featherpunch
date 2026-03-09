@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { useModalStore } from '@/stores/modal-store';
@@ -107,27 +107,44 @@ function OverviewRow({
   );
 }
 
+function refetchSessions(
+  roleId: string,
+  period: Period,
+  setSessions: (s: SessionWithRole[]) => void,
+  setSessionsForRanges: (s: SessionWithRole[]) => void
+) {
+  const { start, end } = getDateRange(period);
+  getSessionsByRoleAndDateRange(roleId, start, end).then(setSessions);
+  const ytd = getYearToDateRange();
+  getSessionsByRoleAndDateRange(roleId, ytd.start, ytd.end).then(setSessionsForRanges);
+}
+
 export default function RoleStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hex, bg } = useThemeColors();
   const { top: safeTop } = useEdgeToEdgeInsets();
   const router = useRouter();
-  const { openSessionEditor } = useModalStore();
+  const { openSessionEditor, sessionEditorId } = useModalStore();
   const [role, setRole] = useState<Role | null | undefined>(undefined);
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
   const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>([]);
   const [period, setPeriod] = useState<Period>('7d');
+  const prevSessionEditorId = useRef<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
       getRoleById(id).then((r) => setRole(r ?? null));
-      const { start, end } = getDateRange(period);
-      getSessionsByRoleAndDateRange(id, start, end).then(setSessions);
-      const ytd = getYearToDateRange();
-      getSessionsByRoleAndDateRange(id, ytd.start, ytd.end).then(setSessionsForRanges);
+      refetchSessions(id, period, setSessions, setSessionsForRanges);
     }, [id, period])
   );
+
+  useEffect(() => {
+    if (prevSessionEditorId.current !== null && sessionEditorId === null && id) {
+      refetchSessions(id, period, setSessions, setSessionsForRanges);
+    }
+    prevSessionEditorId.current = sessionEditorId;
+  }, [sessionEditorId, id, period]);
 
   const rangeTotals = useMemo(() => {
     const now = new Date();
@@ -590,6 +607,7 @@ export default function RoleStatsScreen() {
                             (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : 0);
                           const duration = formatDurationShort(durationMs);
                           const isLastInDay = daySessions.indexOf(s) === daySessions.length - 1;
+                          const hasNote = s.notes != null && s.notes.trim() !== '';
                           return (
                             <TouchableOpacity
                               key={s.id}
@@ -607,12 +625,26 @@ export default function RoleStatsScreen() {
                                 borderBottomColor: hex.border,
                               }}
                             >
-                              <Text
-                                style={{ fontSize: 15, color: hex.text }}
-                                numberOfLines={1}
-                              >
-                                {formatTimeRange(s.startAt, s.endAt)}
-                              </Text>
+                              <View style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
+                                <Text
+                                  style={{ fontSize: 15, color: hex.text }}
+                                  numberOfLines={1}
+                                >
+                                  {formatTimeRange(s.startAt, s.endAt)}
+                                </Text>
+                                {hasNote && (
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      color: hex.textTertiary,
+                                      marginTop: 2,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    {s.notes!.trim()}
+                                  </Text>
+                                )}
+                              </View>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Text
                                   style={{
