@@ -1,0 +1,141 @@
+import type { SessionWithRole, RoleStat, AnalyticsSummary } from '@/types';
+
+export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary {
+  const completed = sessions.filter((s) => s.endAt !== null);
+
+  let totalMs = 0;
+  let meMs = 0;
+  let otherMs = 0;
+  let longestMs = 0;
+
+  const roleMap = new Map<string, {
+    roleId: string;
+    roleName: string;
+    roleColor: string;
+    roleIcon: string;
+    roleTag: SessionWithRole['roleTag'];
+    totalMs: number;
+    count: number;
+  }>();
+
+  for (const s of completed) {
+    const dur = s.durationMs ?? 0;
+    totalMs += dur;
+    if (s.roleTag === 'me') meMs += dur;
+    else otherMs += dur;
+    if (dur > longestMs) longestMs = dur;
+
+    const existing = roleMap.get(s.roleId);
+    if (existing) {
+      existing.totalMs += dur;
+      existing.count += 1;
+    } else {
+      roleMap.set(s.roleId, {
+        roleId: s.roleId,
+        roleName: s.roleName,
+        roleColor: s.roleColor,
+        roleIcon: s.roleIcon,
+        roleTag: s.roleTag,
+        totalMs: dur,
+        count: 1,
+      });
+    }
+  }
+
+  const roleStats: RoleStat[] = Array.from(roleMap.values())
+    .map((r) => ({
+      ...r,
+      sessionCount: r.count,
+      avgSessionMs: r.count > 0 ? r.totalMs / r.count : 0,
+    }))
+    .sort((a, b) => b.totalMs - a.totalMs);
+
+  const daySet = new Set(
+    completed.map((s) => new Date(s.startAt).toISOString().split('T')[0])
+  );
+  const dayCount = Math.max(daySet.size, 1);
+  const switchesPerDay = completed.length / dayCount;
+
+  return {
+    totalMs,
+    meMs,
+    otherMs,
+    mePercent: totalMs > 0 ? Math.round((meMs / totalMs) * 100) : 0,
+    roleStats,
+    sessionCount: completed.length,
+    avgSessionMs: completed.length > 0 ? totalMs / completed.length : 0,
+    mostFrequentRole: roleStats.length > 0 ? roleStats[0].roleName : null,
+    longestSessionMs: longestMs,
+    switchesPerDay: Math.round(switchesPerDay * 10) / 10,
+  };
+}
+
+function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Returns daily time breakdown for charting (value in hours, label for x-axis) */
+export function computeRoleTimeSeries(
+  sessions: SessionWithRole[],
+  period: '7d' | '30d'
+): { dateKey: string; totalMs: number; label: string }[] {
+  const dayMap = new Map<string, number>();
+  const completed = sessions.filter((s) => s.endAt != null);
+
+  for (const s of completed) {
+    const dateKey = toLocalDateKey(new Date(s.startAt));
+    const dur = s.durationMs ?? 0;
+    dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + dur);
+  }
+
+  const days = period === '7d' ? 7 : 30;
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 1);
+  const start = new Date(end);
+  start.setDate(start.getDate() - days);
+
+  const result: { dateKey: string; totalMs: number; label: string }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(start);
+  while (d < end) {
+    const dateKey = toLocalDateKey(d);
+    const totalMs = dayMap.get(dateKey) ?? 0;
+    const dayOfMonth = d.getDate();
+    const shortLabel =
+      d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+        ? 'Today'
+        : `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${dayOfMonth}`;
+    result.push({ dateKey, totalMs, label: shortLabel });
+    d.setDate(d.getDate() + 1);
+  }
+  return result;
+}
+
+export function computeTodaySplit(sessions: SessionWithRole[]): {
+  meMs: number;
+  otherMs: number;
+  totalMs: number;
+  mePercent: number;
+} {
+  let meMs = 0;
+  let otherMs = 0;
+
+  for (const s of sessions) {
+    const dur = s.durationMs ?? (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : Date.now() - new Date(s.startAt).getTime());
+    if (s.roleTag === 'me') meMs += dur;
+    else otherMs += dur;
+  }
+
+  const totalMs = meMs + otherMs;
+  return {
+    meMs,
+    otherMs,
+    totalMs,
+    mePercent: totalMs > 0 ? Math.round((meMs / totalMs) * 100) : 0,
+  };
+}
