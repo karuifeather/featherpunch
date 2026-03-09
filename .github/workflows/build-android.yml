@@ -1,5 +1,5 @@
 # Build Android APK. Uses Expo prebuild + Gradle; signs with debug keystore.
-# No secrets required for boilerplate. Add your own .env handling if needed.
+# This project has no .env; no env file step required.
 name: Build Android APK
 
 on:
@@ -85,12 +85,12 @@ jobs:
           name: android-apk
 
       - name: Rename APK with version
-        run: mv app.apk feather-app-boiler-${GITHUB_REF#refs/tags/v}.apk
+        run: mv app.apk featherpunch-v${GITHUB_REF#refs/tags/v}.apk
 
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
         with:
-          files: feather-app-boiler-*.apk
+          files: featherpunch-v*.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

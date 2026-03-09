@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build a release APK locally. Requires: yarn deps, expo prebuild, debug keystore, Android SDK.
-# Uses Java 17 if available (required for React Native Gradle plugin).
+# Build a release APK locally. Requires: yarn deps, Android SDK, Java 17.
+# If android/ is missing, runs expo prebuild first. Creates debug keystore for signing if missing.
 
 set -e
 cd "$(dirname "$0")/.."
@@ -15,13 +15,16 @@ if [[ -z "$JAVA_HOME" || ! -x "$JAVA_HOME/bin/javac" ]]; then
   done
 fi
 
-if [[ -z "$JAVA_HOME" ]]; then
-  echo "Warning: JAVA_HOME not set to Java 17. If the build fails with 'Error resolving plugin', install JDK 17 and set JAVA_HOME."
+if [[ -n "$JAVA_HOME" ]]; then
+  echo "Using JAVA_HOME=$JAVA_HOME"
+  "$JAVA_HOME/bin/java" -version 2>&1 || true
+else
+  echo "Warning: JAVA_HOME not set. Install JDK 17 and set JAVA_HOME if the build fails."
 fi
 
 if [[ ! -d android ]]; then
-  echo "Run from repo root after: npx expo prebuild --platform android --no-install"
-  exit 1
+  echo "android/ not found. Running: npx expo prebuild --platform android --no-install"
+  npx expo prebuild --platform android --no-install
 fi
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
@@ -29,8 +32,15 @@ if [[ ! -f android/local.properties ]]; then
   echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 fi
 
-echo "Using JAVA_HOME=$JAVA_HOME"
-"$JAVA_HOME/bin/java" -version 2>&1 || true
+# Create debug keystore for release signing if missing (same as CI)
+if [[ ! -f android/app/debug.keystore ]]; then
+  echo "Creating debug keystore for release signing..."
+  keytool -genkeypair -v -storetype PKCS12 \
+    -keystore android/app/debug.keystore \
+    -storepass android -alias androiddebugkey -keypass android \
+    -keyalg RSA -keysize 2048 -validity 10000 \
+    -dname "CN=Android Debug,O=Android,C=US"
+fi
 
 cd android
 ./gradlew assembleRelease --no-daemon
@@ -39,6 +49,6 @@ APK=app/build/outputs/apk/release/app-release.apk
 if [[ -f "$APK" ]]; then
   echo ""
   echo "APK built: android/$APK"
-  cp "$APK" ../featherneko.apk
-  echo "Copied to: featherneko.apk"
+  cp "$APK" ../featherpunch.apk
+  echo "Copied to: featherpunch.apk"
 fi
