@@ -48,7 +48,7 @@ class ImmersiveModeModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun setNavBarTransparent() {
+    fun setNavBarTransparent(lightBars: Boolean) {
         val activity = getReactApplicationContext()?.currentActivity ?: return
         activity.runOnUiThread {
             val window = activity.window ?: return@runOnUiThread
@@ -57,8 +57,11 @@ class ImmersiveModeModule(reactContext: ReactApplicationContext) :
                 window.isNavigationBarContrastEnforced = false
             }
             WindowCompat.setDecorFitsSystemWindows(window, false)
-            WindowInsetsControllerCompat(window, window.decorView).apply {
-                isAppearanceLightNavigationBars = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    // true = light icons (for dark bg), false = dark icons (for light bg)
+                    isAppearanceLightNavigationBars = lightBars
+                }
             }
         }
     }

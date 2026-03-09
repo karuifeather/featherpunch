@@ -9,11 +9,11 @@ export const LIGHT_BG = '#f3f4f6'; // gray-100
 
 const { ImmersiveMode } = NativeModules;
 
-function applyAndroidNavBar() {
+function applyAndroidNavBar(lightBars: boolean) {
   if (Platform.OS !== 'android') return;
   // Use native module — expo-navigation-bar JS API is ignored with edge-to-edge.
-  // MainActivity.onCreate handles cold start; this handles app resume.
-  ImmersiveMode?.setNavBarTransparent?.();
+  // lightBars = true for dark theme (light icons), false for light theme (dark icons).
+  ImmersiveMode?.setNavBarTransparent?.(lightBars);
 }
 
 /** Wraps the app so the area behind the status bar uses theme color. */
@@ -36,7 +36,7 @@ export default function ThemeAwareSystemBars() {
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(bg);
     if (Platform.OS === 'android') {
-      applyAndroidNavBar();
+      applyAndroidNavBar(isDark);
     }
   }, [isDark, bg]);
 
@@ -46,8 +46,8 @@ export default function ThemeAwareSystemBars() {
     if (Platform.OS !== 'android') return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        applyAndroidNavBar();
-        setTimeout(applyAndroidNavBar, 150);
+        applyAndroidNavBar(isDark);
+        setTimeout(() => applyAndroidNavBar(isDark), 150);
       }
     });
     return () => sub.remove();

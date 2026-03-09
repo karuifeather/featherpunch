@@ -12,9 +12,9 @@ import {
 import { useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { setSetting } from '@/db/settings';
+import { BRAND } from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
-const ACCENT = '#8b5cf6';
 
 interface Slide {
   id: string;
@@ -87,7 +87,7 @@ export default function OnboardingScreen() {
       <View className="absolute inset-0">
         <View
           className="absolute top-[-10%] right-[-5%] w-64 h-64 rounded-full opacity-[0.05]"
-          style={{ backgroundColor: ACCENT }}
+          style={{ backgroundColor: BRAND.primary }}
         />
       </View>
 
@@ -108,9 +108,9 @@ export default function OnboardingScreen() {
           >
             <View
               className="w-28 h-28 rounded-3xl items-center justify-center mb-8"
-              style={{ backgroundColor: `${ACCENT}18` }}
+              style={{ backgroundColor: `${BRAND.primary}18` }}
             >
-              <FontAwesomeIcon icon={item.icon} size={44} color={ACCENT} />
+              <FontAwesomeIcon icon={item.icon} size={44} color={BRAND.primary} />
             </View>
             <Text className={`${text} text-2xl font-bold text-center max-w-[280px]`}>
               {item.title}
@@ -125,17 +125,17 @@ export default function OnboardingScreen() {
       {/* Progress bar */}
       <View
         className="absolute left-0 right-0 px-10"
-        style={{ bottom: insets.bottom + 80 }}
+        style={{ bottom: insets.bottom + 112 }}
       >
         <View
           className="h-1 rounded-full overflow-hidden"
-          style={{ backgroundColor: `${ACCENT}22` }}
+          style={{ backgroundColor: `${BRAND.primary}22` }}
         >
           <Animated.View
             className="h-full rounded-full"
             style={{
               width: `${((currentIndex + 1) / slides.length) * 100}%`,
-              backgroundColor: ACCENT,
+              backgroundColor: BRAND.primary,
             }}
           />
         </View>
@@ -143,7 +143,7 @@ export default function OnboardingScreen() {
 
       <View
         className="absolute left-0 right-0 flex-row justify-between items-center px-8"
-        style={{ bottom: insets.bottom + 16 }}
+        style={{ bottom: insets.bottom + 48 }}
       >
         <Pressable
           onPress={finishOnboarding}
@@ -155,7 +155,7 @@ export default function OnboardingScreen() {
         <Pressable
           onPress={goToNext}
           className="py-3.5 px-8 rounded-xl active:opacity-90"
-          style={{ backgroundColor: ACCENT, minHeight: 48 }}
+          style={{ backgroundColor: BRAND.primary, minHeight: 48 }}
         >
           <Text className="text-base font-semibold text-white">
             {currentIndex === slides.length - 1 ? 'Start' : 'Next'}

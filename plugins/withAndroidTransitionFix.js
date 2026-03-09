@@ -71,8 +71,7 @@ function withAndroidTransitionFix(config) {
       window.isNavigationBarContrastEnforced = false
     }
     WindowCompat.setDecorFitsSystemWindows(window, false)
-    WindowInsetsControllerCompat(window, window.decorView).apply {
-      isAppearanceLightNavigationBars = false
+    // isAppearanceLightNavigationBars set from JS (ThemeAwareSystemBars) so nav bar follows app theme
     }`
           );
           // Remove the duplicate closing brace from onCreate that we just broke
@@ -106,6 +105,10 @@ function withAndroidTransitionFix(config) {
           modified = true;
         } else if (!styles.includes('android:enforceNavigationBarContrast')) {
           additions.push('<item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>');
+        }
+        // Default: light nav bar icons (app default is dark theme). JS can override when theme changes.
+        if (!styles.includes('android:windowLightNavigationBar')) {
+          additions.push('<item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>');
         }
         if (additions.length > 0) {
           styles = styles.replace(

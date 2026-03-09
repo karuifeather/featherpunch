@@ -1,6 +1,5 @@
 /**
- * Custom entry: set Android nav bar transparent before the app mounts.
- * Import order matters — this runs before expo-router/entry.
+ * App entry. Android nav bar transparency is set natively (MainActivity + styles.xml)
+ * and theme-aware appearance is applied in ThemeAwareSystemBars.
  */
-import './navigation-bar-init';
 import 'expo-router/entry';
