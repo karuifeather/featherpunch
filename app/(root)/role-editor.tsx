@@ -17,6 +17,7 @@ import { RADIUS, TYPOGRAPHY, TAG_COLORS } from '@/constants/designTokens';
 import { ACCENT, SEMANTIC } from '@/constants/colors';
 import { ROLE_COLORS, ROLE_ICONS } from '@/constants/roles';
 import { getRoleById, createRole, updateRole, deleteRole } from '@/db/roles';
+import { useRolesStore } from '@/stores/roles-store';
 import type { RoleTag } from '@/types';
 
 export interface RoleEditorContentProps {
@@ -27,6 +28,7 @@ export interface RoleEditorContentProps {
 export function RoleEditorContent({ id, onClose }: RoleEditorContentProps) {
   const insets = useSafeAreaInsets();
   const { hex, bg } = useThemeColors();
+  const bumpRolesVersion = useRolesStore((s) => s.bumpRolesVersion);
   const isEditing = !!id;
 
   const [name, setName] = useState('');
@@ -69,6 +71,7 @@ export function RoleEditorContent({ id, onClose }: RoleEditorContentProps) {
     }
 
     setSaving(false);
+    bumpRolesVersion();
     onClose();
   };
 
@@ -81,6 +84,7 @@ export function RoleEditorContent({ id, onClose }: RoleEditorContentProps) {
     if (!id) return;
     setConfirmDelete(false);
     await deleteRole(id);
+    bumpRolesVersion();
     onClose();
   };
 

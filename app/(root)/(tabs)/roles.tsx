@@ -21,6 +21,7 @@ import { EdgeToEdgeScreen } from '@/components/screen-container';
 import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { ACCENT } from '@/constants/colors';
 import { updateRole, deleteRole } from '@/db/roles';
+import { useRolesStore } from '@/stores/roles-store';
 import type { Role } from '@/types';
 
 const ROW_PADDING_V = 12;
@@ -57,6 +58,8 @@ export default function RolesScreen() {
   const handleArchive = (role: Role) => setConfirmRole({ role, action: 'archive' });
   const handleDelete = (role: Role) => setConfirmRole({ role, action: 'delete' });
 
+  const bumpRolesVersion = useRolesStore((s) => s.bumpRolesVersion);
+
   const onConfirmAction = async () => {
     if (!confirmRole) return;
     const { role, action } = confirmRole;
@@ -68,7 +71,7 @@ export default function RolesScreen() {
       await deleteRole(role.id);
       if (wasActiveRole) useSessionStore.getState().clear();
     }
-    refresh();
+    bumpRolesVersion();
   };
 
   const headerSubtitle =
