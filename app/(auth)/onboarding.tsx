@@ -11,8 +11,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { useDispatch } from 'react-redux';
-import { authenticate } from '@/state/userSlice';
+import { setSetting } from '@/db/settings';
 
 const { width } = Dimensions.get('window');
 const ACCENT = '#8b5cf6';
@@ -47,7 +46,6 @@ const slides: Slide[] = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const dispatch = useDispatch();
   const { bg, text, subtext } = useThemeColors();
   const insets = useSafeAreaInsets();
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -71,8 +69,8 @@ export default function OnboardingScreen() {
 
   const viewabilityConfig = { itemVisiblePercentThreshold: 50 };
 
-  const finishOnboarding = () => {
-    dispatch(authenticate());
+  const finishOnboarding = async () => {
+    await setSetting('onboarding_completed', '1');
     router.replace('/(root)/(tabs)/home');
   };
 

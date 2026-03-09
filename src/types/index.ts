@@ -88,4 +88,5 @@ export type AppSettingKey =
   | 'week_start_day'
   | 'currency'
   | 'privacy_lock'
-  | 'export_format';
+  | 'export_format'
+  | 'onboarding_completed';

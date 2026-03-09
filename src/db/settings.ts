@@ -6,6 +6,7 @@ const DEFAULTS: Record<AppSettingKey, string> = {
   currency: 'USD',
   privacy_lock: '0',
   export_format: 'csv',
+  onboarding_completed: '0',
 };
 
 export async function getSetting(key: AppSettingKey): Promise<string> {
