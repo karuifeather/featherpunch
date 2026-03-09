@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, View, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, Text, View, TouchableOpacity } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
@@ -18,7 +18,6 @@ import { useRoles } from '@/hooks/useRoles';
 import { OverlayHeader } from '@/components/overlay-header';
 import { ExportModal } from '@/components/export-modal';
 import { TYPOGRAPHY, RADIUS } from '@/constants/designTokens';
-import * as demoSeed from '@/seed/demoSeed';
 
 const SECTION_HEADER_MARGIN_TOP = 18;
 const SECTION_HEADER_MARGIN_BOTTOM = 8;
@@ -131,21 +130,8 @@ export default function SettingsScreen() {
   const theme = useSelector((state: RootState) => state.settings.theme);
   const { bg, hex } = useThemeColors();
   const { overlayHeaderHeight, tabBarHeight } = useEdgeToEdgeInsets();
-  const { roles, refresh: refreshRoles } = useRoles(true);
+  const { roles } = useRoles(true);
   const [exportModalVisible, setExportModalVisible] = useState(false);
-
-  const runDemoAction = async (
-    label: string,
-    fn: () => Promise<void>
-  ) => {
-    try {
-      await fn();
-      refreshRoles();
-      Alert.alert('Demo data', `${label}. Open Home or Insights to see it.`);
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong');
-    }
-  };
 
   return (
     <View className={`flex-1 ${bg}`}>
@@ -249,36 +235,6 @@ export default function SettingsScreen() {
             disabled
           />
         </GroupCard>
-
-        {__DEV__ && (
-          <>
-            <SectionHeader label="Demo data (screenshots)" />
-            <GroupCard>
-              <View style={{ borderBottomWidth: 1, borderBottomColor: hex.border }}>
-                <SettingsRow
-                  label="Load landing (default)"
-                  onPress={() => runDemoAction('Landing default loaded', demoSeed.loadLandingDefault)}
-                />
-              </View>
-              <View style={{ borderBottomWidth: 1, borderBottomColor: hex.border }}>
-                <SettingsRow
-                  label="Load landing (active)"
-                  onPress={() => runDemoAction('Landing active loaded', demoSeed.loadLandingActive)}
-                />
-              </View>
-              <View style={{ borderBottomWidth: 1, borderBottomColor: hex.border }}>
-                <SettingsRow
-                  label="Load landing (ready)"
-                  onPress={() => runDemoAction('Landing ready loaded', demoSeed.loadLandingReady)}
-                />
-              </View>
-              <SettingsRow
-                label="Clear demo data"
-                onPress={() => runDemoAction('All data cleared', demoSeed.clearDemoData)}
-              />
-            </GroupCard>
-          </>
-        )}
 
         <SectionHeader label="About" />
         <View

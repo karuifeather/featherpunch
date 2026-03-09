@@ -107,44 +107,6 @@ export async function deleteRole(id: string): Promise<void> {
   await db.runAsync('DELETE FROM roles WHERE id = ?', [id]);
 }
 
-/** Remove all roles (for demo reset). Call after deleteAllSessions if clearing everything. */
-export async function deleteAllRoles(): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM sessions');
-  await db.runAsync('DELETE FROM roles');
-}
-
-/**
- * Insert a role with a fixed id (for demo seed). Does not check for existing roles.
- */
-export async function insertRoleRaw(params: {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-  tag: RoleTag;
-  hourlyRate: number | null;
-  sortOrder: number;
-}): Promise<void> {
-  const db = await getDb();
-  const now = new Date().toISOString();
-  await db.runAsync(
-    `INSERT INTO roles (id, name, color, icon, tag, hourly_rate, is_archived, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-    [
-      params.id,
-      params.name,
-      params.color,
-      params.icon,
-      params.tag,
-      params.hourlyRate,
-      params.sortOrder,
-      now,
-      now,
-    ]
-  );
-}
-
 export async function seedDefaultRoles(presets: Array<{
   name: string;
   icon: string;

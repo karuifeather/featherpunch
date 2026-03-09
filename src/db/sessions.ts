@@ -207,54 +207,9 @@ export async function deleteSession(id: string): Promise<void> {
   await db.runAsync('DELETE FROM sessions WHERE id = ?', [id]);
 }
 
-/**
- * Insert a completed session with explicit timestamps (for seed/import).
- * Does not enforce single active session — use only when seeding demo data.
- */
-export async function insertSessionRaw(params: {
-  id: string;
-  roleId: string;
-  startAt: string;
-  endAt: string;
-  durationMs: number;
-  source?: SessionSource;
-}): Promise<void> {
-  const db = await getDb();
-  const source = params.source ?? 'manual';
-  const now = new Date().toISOString();
-  await db.runAsync(
-    `INSERT INTO sessions (id, role_id, start_at, end_at, duration_ms, source, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
-    [params.id, params.roleId, params.startAt, params.endAt, params.durationMs, source, now, now]
-  );
-}
-
-/**
- * Insert an active (open) session — for demo "landing-active" preset.
- */
-export async function insertActiveSessionRaw(params: {
-  id: string;
-  roleId: string;
-  startAt: string;
-}): Promise<void> {
-  const db = await getDb();
-  const now = new Date().toISOString();
-  await db.runAsync(
-    `INSERT INTO sessions (id, role_id, start_at, end_at, duration_ms, source, notes, created_at, updated_at)
-     VALUES (?, ?, ?, NULL, NULL, 'manual', NULL, ?, ?)`,
-    [params.id, params.roleId, params.startAt, now, now]
-  );
-}
-
 export async function getTodaySessions(): Promise<SessionWithRole[]> {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
   return getSessionsByDateRange(startOfDay, endOfDay);
-}
-
-/** Remove all sessions (for demo reset). */
-export async function deleteAllSessions(): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM sessions');
 }
