@@ -320,7 +320,22 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
         initialIso={endAt ?? startAt ?? new Date().toISOString()}
         onSelect={(iso) => setEndAt(iso)}
         title="Set end time"
-        timeOnly
+        timeOnly={false}
+        minDateIso={(() => {
+          const ref = session.endAt ?? session.startAt;
+          if (!ref) return undefined;
+          const d = new Date(ref);
+          d.setHours(0, 0, 0, 0);
+          return d.toISOString();
+        })()}
+        maxDateIso={(() => {
+          const ref = session.endAt ?? session.startAt;
+          if (!ref) return undefined;
+          const d = new Date(ref);
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() + 1);
+          return d.toISOString();
+        })()}
       />
 
       <ConfirmDialog

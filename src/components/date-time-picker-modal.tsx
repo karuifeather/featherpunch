@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -66,12 +66,33 @@ function buildTimeOptions(): TimeOption[] {
 const DATE_OPTIONS = buildDateOptions();
 const TIME_OPTIONS = buildTimeOptions();
 
-function findDateIndex(isoString: string): number {
+/** Build date options from min to max (inclusive), one day each. */
+function buildDateOptionsFromRange(minDateIso: string, maxDateIso: string): DateOption[] {
+  const options: DateOption[] = [];
+  const min = new Date(minDateIso);
+  const max = new Date(maxDateIso);
+  min.setHours(0, 0, 0, 0);
+  max.setHours(0, 0, 0, 0);
+  const d = new Date(min);
+  while (d.getTime() <= max.getTime()) {
+    const iso = d.toISOString();
+    options.push({
+      label: getDayLabel(iso),
+      y: d.getFullYear(),
+      m: d.getMonth(),
+      d: d.getDate(),
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  return options;
+}
+
+function findDateIndex(isoString: string, dateOptions: DateOption[]): number {
   const d = new Date(isoString);
   const y = d.getFullYear();
   const m = d.getMonth();
   const day = d.getDate();
-  const i = DATE_OPTIONS.findIndex(
+  const i = dateOptions.findIndex(
     (o) => o.y === y && o.m === m && o.d === day
   );
   return i >= 0 ? i : 0;
@@ -93,6 +114,9 @@ interface DateTimePickerModalProps {
   title: string;
   /** When true, only time can be changed; date is taken from initialIso. */
   timeOnly?: boolean;
+  /** When set, date picker is restricted to this range (same day or +1 for end). */
+  minDateIso?: string;
+  maxDateIso?: string;
 }
 
 /** Brand-custom date & time picker — bottom sheet, app tokens. Use timeOnly for log editing (change time only). */
@@ -103,20 +127,30 @@ export function DateTimePickerModal({
   onSelect,
   title,
   timeOnly = false,
+  minDateIso,
+  maxDateIso,
 }: DateTimePickerModalProps) {
   const { hex } = useThemeColors();
   const [dateIndex, setDateIndex] = useState(0);
   const [timeIndex, setTimeIndex] = useState(0);
   const timeScrollRef = useRef<ScrollView>(null);
 
+  const dateOptions = useMemo(
+    () =>
+      minDateIso != null && maxDateIso != null
+        ? buildDateOptionsFromRange(minDateIso, maxDateIso)
+        : DATE_OPTIONS,
+    [minDateIso, maxDateIso]
+  );
+
   useEffect(() => {
     if (visible && initialIso) {
-      setDateIndex(findDateIndex(initialIso));
+      setDateIndex(findDateIndex(initialIso, dateOptions));
       setTimeIndex(findTimeIndex(initialIso));
     }
-  }, [visible, initialIso]);
+  }, [visible, initialIso, dateOptions]);
 
-  const selectedDate = DATE_OPTIONS[dateIndex];
+  const selectedDate = dateOptions[dateIndex];
   const selectedTime = TIME_OPTIONS[timeIndex];
 
   const handleConfirm = () => {
@@ -172,7 +206,7 @@ export function DateTimePickerModal({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.dateStrip}
               >
-                {DATE_OPTIONS.map((opt, i) => (
+                {dateOptions.map((opt, i) => (
                   <TouchableOpacity
                     key={`${opt.y}-${opt.m}-${opt.d}`}
                     onPress={() => setDateIndex(i)}
