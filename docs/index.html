@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FeatherPunch — See where your time goes</title>
+  <meta name="description" content="You do not live one life. You live many roles. FeatherPunch helps you punch into the roles you live and see where your time truly goes." />
+  <link rel="icon" href="favicon.png" type="image/png" />
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --surface: #141416;
+      --elevated: #1c1e21;
+      --border: #2d2f33;
+      --text: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-tertiary: #71717a;
+      --accent: #4a7c7c;
+      --accent-soft: rgba(74, 124, 124, 0.15);
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-serif: Georgia, 'Times New Roman', serif;
+      --space: 1.25rem;
+      --section-pad: clamp(4rem, 12vw, 8rem);
+      --max-width: 42rem;
+      --max-width-wide: 60rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 1.0625rem;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    img { display: block; max-width: 100%; }
+
+    .wrap {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding-left: var(--space);
+      padding-right: var(--space);
+    }
+    .wrap-wide {
+      max-width: var(--max-width-wide);
+      margin: 0 auto;
+      padding-left: var(--space);
+      padding-right: var(--space);
+    }
+
+    /* ———————————————————————————————————
+       Hero
+    ——————————————————————————————————— */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: clamp(3rem, 10vw, 6rem);
+      padding-bottom: clamp(3rem, 10vw, 5rem);
+    }
+    .hero .wrap { text-align: center; }
+    .hero h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(2.25rem, 6vw, 3.5rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin: 0 0 1rem;
+    }
+    .hero .support {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      max-width: 28rem;
+      margin: 0 auto 2.5rem;
+    }
+    .hero .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+    .hero .cta a {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .hero .cta .primary {
+      background: var(--accent);
+      color: #f0f9ff;
+    }
+    .hero .cta .primary:hover { background: #3d6969; }
+    .hero .cta .secondary {
+      background: var(--elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .hero .cta .secondary:hover { background: var(--border); }
+    .hero .read-link {
+      font-size: 0.875rem;
+      color: var(--text-tertiary);
+    }
+    .hero .read-link a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .hero .read-link a:hover { color: var(--accent); text-decoration: underline; }
+
+    /* Hero phone mockup */
+    .phone-wrap {
+      margin-top: 3rem;
+      display: flex;
+      justify-content: center;
+    }
+    .phone {
+      width: min(280px, 85vw);
+      aspect-ratio: 9 / 19.5;
+      background: var(--surface);
+      border-radius: 2.5rem;
+      border: 3px solid var(--border);
+      padding: 0.75rem;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      border-radius: 2rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+    .phone-screen .mock-content {
+      text-align: center;
+      padding: 1rem;
+    }
+    .phone-screen .mock-content strong { color: var(--text); }
+    .phone-screen .mock-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin: 0.5rem auto;
+    }
+
+    /* ———————————————————————————————————
+       Sections (shared)
+    ——————————————————————————————————— */
+    section {
+      padding-top: var(--section-pad);
+      padding-bottom: var(--section-pad);
+    }
+    section h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 400;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin: 0 0 1rem;
+    }
+    section .lead {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+    section p {
+      margin: 0 0 1rem;
+      color: var(--text-secondary);
+    }
+    section p:last-child { margin-bottom: 0; }
+
+    /* ———————————————————————————————————
+       The idea
+    ——————————————————————————————————— */
+    .idea .wrap { max-width: 36rem; }
+
+    /* ———————————————————————————————————
+       How it works
+    ——————————————————————————————————— */
+    .steps {
+      display: grid;
+      gap: 2.5rem;
+      margin-top: 2.5rem;
+    }
+    @media (min-width: 640px) {
+      .steps { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    }
+    .step { text-align: center; }
+    .step-num {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.8125rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.75rem;
+    }
+    .step h3 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      margin: 0 0 0.375rem;
+    }
+    .step p {
+      font-size: 0.9375rem;
+      margin: 0;
+      color: var(--text-secondary);
+    }
+
+    /* ———————————————————————————————————
+       What it reveals
+    ——————————————————————————————————— */
+    .reveals ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0 0;
+    }
+    .reveals li {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    .reveals li:last-child { border-bottom: none; }
+
+    /* ———————————————————————————————————
+       Screenshots
+    ——————————————————————————————————— */
+    .screenshots {
+      background: var(--surface);
+    }
+    .screenshot-strip {
+      display: flex;
+      gap: 1.25rem;
+      overflow-x: auto;
+      padding: 1.5rem 0 2rem;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .screenshot-strip::-webkit-scrollbar { height: 5px; }
+    .screenshot-strip::-webkit-scrollbar-track { background: transparent; }
+    .screenshot-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .screenshot-card {
+      flex: 0 0 min(220px, 68vw);
+      scroll-snap-align: start;
+      background: var(--elevated);
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: transform 0.2s;
+    }
+    .screenshot-card:hover { transform: translateY(-4px); }
+    .screenshot-card .img-wrap {
+      aspect-ratio: 9 / 17;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .screenshot-card .img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+    }
+    .screenshot-card .label {
+      padding: 0.625rem 0.875rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+
+    /* ———————————————————————————————————
+       Principles
+    ——————————————————————————————————— */
+    .principles ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0 0;
+      display: grid;
+      gap: 0.625rem;
+    }
+    .principles li {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+    .principles li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ———————————————————————————————————
+       Final CTA
+    ——————————————————————————————————— */
+    .final-cta {
+      text-align: center;
+      padding-bottom: 4rem;
+    }
+    .final-cta h2 { margin-bottom: 0.5rem; }
+    .final-cta .sub {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+    .final-cta .sub a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .final-cta .sub a:hover { color: var(--accent); }
+    .final-cta .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .final-cta .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9375rem;
+    }
+    .final-cta .links a:hover { text-decoration: underline; }
+
+    /* ———————————————————————————————————
+       Footer
+    ——————————————————————————————————— */
+    footer {
+      padding: 2rem var(--space);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 0.8125rem;
+    }
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <!-- ————— Hero ————— -->
+  <header class="hero">
+    <div class="wrap">
+      <h1>You do not live one life.<br />You live many roles.</h1>
+      <p class="support">FeatherPunch helps you punch into the roles you live and see where your time truly goes.</p>
+      <div class="cta">
+        <a href="#screenshots" class="primary">View the app</a>
+        <a href="https://github.com/karuifeather/featherpunch/releases" class="secondary">Get the app</a>
+      </div>
+      <p class="read-link"><a href="#idea">Read the idea</a></p>
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="mock-content">
+              <strong>Today</strong>
+              <div class="mock-dot"></div>
+              One role at a time.<br />Punch in. See where it went.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ————— The idea ————— -->
+  <section class="idea" id="idea">
+    <div class="wrap">
+      <h2>The idea</h2>
+      <p class="lead">Not "manage time better."</p>
+      <p>We spend so much of life giving time to work, responsibilities, and other people. FeatherPunch helps bring that time into view — and shows how much of it is truly yours.</p>
+      <p>This is not another task tracker. It's a quiet way to see the roles you actually live.</p>
+    </div>
+  </section>
+
+  <!-- ————— How it works ————— -->
+  <section class="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Create roles</h3>
+          <p>Sleeping, Working, Building, Family, Rest — and tag each as "me" or "other."</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Punch in and out</h3>
+          <p>One active role at a time. Switch when life switches.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>See where your time went</h3>
+          <p>Honest views of your day, your week, and who your time belonged to.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ————— What it reveals ————— -->
+  <section class="reveals">
+    <div class="wrap">
+      <h2>Not just what you did — but who your time belonged to.</h2>
+      <p class="lead">What FeatherPunch reveals:</p>
+      <ul>
+        <li>Time for you vs for others</li>
+        <li>Your most-lived roles</li>
+        <li>Longest stretches in each role</li>
+        <li>Weekly patterns</li>
+        <li>Optional value view (when you set rates)</li>
+      </ul>
+      <p style="margin-top: 1.5rem;">Reflective, not analytical. Built to help you see, not to pressure.</p>
+    </div>
+  </section>
+
+  <!-- ————— Screenshots ————— -->
+  <section class="screenshots" id="screenshots">
+    <div class="wrap-wide">
+      <h2>Product preview</h2>
+      <p class="lead">A few screens from the app.</p>
+      <div class="screenshot-strip">
+        <div class="screenshot-card">
+          <div class="img-wrap"><img src="images/active.jpg" alt="Home" width="591" height="1168" loading="lazy" /></div>
+          <div class="label">Home</div>
+        </div>
+        <div class="screenshot-card">
+          <div class="img-wrap"><img src="images/roles.jpg" alt="Roles" width="746" height="1280" loading="lazy" /></div>
+          <div class="label">Roles</div>
+        </div>
+        <div class="screenshot-card">
+          <div class="img-wrap"><img src="images/insights.jpg" alt="Insights" width="591" height="1170" loading="lazy" /></div>
+          <div class="label">Insights</div>
+        </div>
+        <div class="screenshot-card">
+          <div class="img-wrap"><img src="images/details.jpg" alt="Role details" width="591" height="1156" loading="lazy" /></div>
+          <div class="label">Role details</div>
+        </div>
+        <div class="screenshot-card">
+          <div class="img-wrap"><img src="images/new.jpg" alt="New role" width="670" height="1280" loading="lazy" /></div>
+          <div class="label">New role</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ————— Principles ————— -->
+  <section class="principles">
+    <div class="wrap">
+      <h2>Principles</h2>
+      <p class="lead">Built to reflect, not pressure.</p>
+      <ul>
+        <li>Local-first — your data stays on your device</li>
+        <li>No account required</li>
+        <li>No noise, no notifications nagging you</li>
+        <li>No guilt — just clarity</li>
+        <li>Built to reflect, not to optimize</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ————— Final CTA ————— -->
+  <section class="final-cta">
+    <div class="wrap">
+      <h2>See where your time goes.</h2>
+      <p class="sub">FeatherPunch — the roles you live, in view. By <a href="https://karuifeather.com">karuifeather</a>.</p>
+      <div class="links">
+        <a href="https://github.com/karuifeather/featherpunch/releases">Download</a>
+        <a href="https://github.com/karuifeather">GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>FeatherPunch. You do not live one life — you live many roles.</p>
+    <p><a href="https://karuifeather.com">karuifeather.com</a> · <a href="https://github.com/karuifeather">GitHub</a></p>
+  </footer>
+
+</body>
+</html>
