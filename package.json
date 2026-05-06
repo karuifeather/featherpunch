@@ -103,6 +103,7 @@
     "@tootallnate/once": "3.0.1"
   },
   "private": true,
+  "packageManager": "yarn@4.13.0",
   "expo": {
     "scheme": "feather-app-boiler",
     "install": {}
