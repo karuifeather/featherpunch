@@ -34,9 +34,21 @@ export function ActiveRoleCard({
   }, []);
 
   const activeMs = getActiveElapsedMs(startAt, nowMs);
+  const activeDurationLabel =
+    activeMs < 60_000
+      ? "Less than 1m active"
+      : `${formatDurationShort(activeMs)} active`;
 
   return (
-    <View style={[styles.panel, { backgroundColor: hex.surface }]}>
+    <View
+      style={[
+        styles.panel,
+        {
+          backgroundColor: `${roleColor}14`,
+          borderColor: `${roleColor}3d`,
+        },
+      ]}
+    >
       <View style={[styles.accentStrip, { backgroundColor: roleColor }]} />
       <View style={styles.panelContent}>
         <View style={styles.panelHeader}>
@@ -49,7 +61,7 @@ export function ActiveRoleCard({
               {roleName}
             </Text>
             <Text style={[styles.activeDuration, { color: hex.text }]}>
-              {formatDurationShort(activeMs)} active
+              {activeDurationLabel}
             </Text>
             <Text style={[styles.statusLine, { color: hex.textSecondary }]}>
               Started {formatTime(startAt)}
@@ -86,60 +98,61 @@ export function ActiveRoleCard({
 const styles = StyleSheet.create({
   panel: {
     borderRadius: RADIUS.card,
-    marginBottom: 20,
+    marginBottom: 10,
     overflow: "hidden",
+    borderWidth: 1,
   },
   accentStrip: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    width: 2,
-    opacity: 0.4,
+    width: 3,
+    opacity: 0.72,
     borderTopLeftRadius: RADIUS.card,
     borderBottomLeftRadius: RADIUS.card,
   },
   panelContent: {
-    padding: 16,
-    paddingLeft: 18,
+    padding: 15,
+    paddingLeft: 17,
   },
   panelHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
+    alignItems: "flex-start",
+    gap: 13,
+    marginBottom: 11,
   },
   panelTitleBlock: {
     flex: 1,
   },
   statusEyebrow: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 2,
+    letterSpacing: 0.8,
+    marginBottom: 3,
   },
   roleName: {
-    fontSize: 17,
-    fontWeight: "600",
-    lineHeight: 22,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24,
   },
   activeDuration: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "800",
-    lineHeight: 24,
-    marginTop: 4,
+    lineHeight: 29,
+    marginTop: 6,
     fontVariant: ["tabular-nums"],
   },
   statusLine: {
     fontSize: 13,
     fontWeight: "500",
-    marginTop: 2,
+    marginTop: 3,
     opacity: 0.85,
   },
   primaryButton: {
     borderRadius: RADIUS.button,
-    paddingVertical: 12,
+    paddingVertical: 11,
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",

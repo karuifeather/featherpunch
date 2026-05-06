@@ -21,8 +21,8 @@ import { useSessionStore } from "@/stores/session-store";
 import { ActiveRoleCard } from "@/components/active-role-card";
 import { RolePickerModal } from "@/components/role-picker-modal";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { OverlayHeader } from "@/components/overlay-header";
 import { EdgeToEdgeScreen } from "@/components/screen-container";
+import { RoleIcon } from "@/components/role-icon";
 import { RADIUS, TYPOGRAPHY, SPACING } from "@/constants/designTokens";
 import { ACCENT } from "@/constants/colors";
 import { formatDurationShort } from "@/utils/formatTime";
@@ -48,7 +48,7 @@ let weatherCache: {
 export default function HomeScreen() {
   const router = useRouter();
   const { hex, bg } = useThemeColors();
-  const { tabBarHeight, overlayHeaderHeight } = useEdgeToEdgeInsets();
+  const { tabBarHeight, top } = useEdgeToEdgeInsets();
   const { roles } = useRoles();
   const { sessions: todaySessions, refresh: refreshSessions } =
     useTodaySessions();
@@ -88,7 +88,6 @@ export default function HomeScreen() {
       now.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
         hour12: false,
       }),
     [now],
@@ -401,88 +400,97 @@ export default function HomeScreen() {
   };
 
   const showRecentRoles = recentRoleIds.length >= 2;
+  const activeNowLabel =
+    todaySummary.activePunchIns > 0
+      ? todaySummary.activeMs < 60_000
+        ? "Less than 1m"
+        : formatDurationShort(todaySummary.activeMs)
+      : "No active session";
 
   return (
-    <EdgeToEdgeScreen
-      style={{ flex: 1 }}
-      overlay={
-        <OverlayHeader
-          title="Home"
-          trailing={
-            <View
-              style={[
-                styles.weatherBadge,
-                {
-                  backgroundColor: hex.surface,
-                  borderColor: hex.border,
-                },
-              ]}
-            >
-              {weatherLoading ? (
-                <ActivityIndicator size="small" color={hex.textSecondary} />
-              ) : (
-                <Text
-                  style={[styles.weatherLabel, { color: hex.textSecondary }]}
-                  numberOfLines={1}
-                >
-                  {weatherLabel}
-                </Text>
-              )}
-            </View>
-          }
-        />
-      }
-    >
+    <EdgeToEdgeScreen style={{ flex: 1 }}>
       <ScrollView
         className={bg}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: overlayHeaderHeight + SPACING.base,
-            paddingBottom: tabBarHeight + 32,
+            paddingTop: top + SPACING.sm,
+            paddingBottom: tabBarHeight + 24,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerBlock}>
+        <View
+          style={[
+            styles.headerCard,
+            { backgroundColor: hex.elevated, borderColor: hex.border },
+          ]}
+        >
           <View style={styles.headerTopRow}>
-            <Text style={[styles.greeting, { color: hex.text }]}>
-              {now.getHours() < 12
-                ? "Good morning"
-                : now.getHours() < 18
-                  ? "Good afternoon"
-                  : "Good evening"}
-            </Text>
-            <Animated.Text
-              style={[
-                styles.currentTime,
-                {
-                  color: hex.textSecondary,
-                  opacity: clockTickAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.72, 1],
-                  }),
-                  transform: [
-                    {
-                      scale: clockTickAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.985, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {currentTimeText}
-            </Animated.Text>
+            <View style={styles.headerContextBlock}>
+              <Text style={[styles.greeting, { color: hex.text }]}>
+                {now.getHours() < 12
+                  ? "Good morning"
+                  : now.getHours() < 18
+                    ? "Good afternoon"
+                    : "Good evening"}
+              </Text>
+              <Text style={[styles.currentDate, { color: hex.textSecondary }]}>
+                {now.toLocaleDateString([], {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </Text>
+            </View>
+            <View style={styles.timeBlock}>
+              <Text style={[styles.timeLabel, { color: hex.textTertiary }]}>
+                Local time
+              </Text>
+              <Animated.Text
+                style={[
+                  styles.currentTime,
+                  {
+                    color: hex.text,
+                    opacity: clockTickAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.72, 1],
+                    }),
+                    transform: [
+                      {
+                        scale: clockTickAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.985, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                {currentTimeText}
+              </Animated.Text>
+            </View>
           </View>
-          <Text style={[styles.currentDate, { color: hex.textSecondary }]}>
-            {now.toLocaleDateString([], {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
+          <View
+            style={[
+              styles.weatherBadge,
+              {
+                backgroundColor: hex.surface,
+                borderColor: hex.border,
+              },
+            ]}
+          >
+            {weatherLoading ? (
+              <ActivityIndicator size="small" color={hex.textSecondary} />
+            ) : (
+              <Text
+                style={[styles.weatherLabel, { color: hex.textSecondary }]}
+                numberOfLines={1}
+              >
+                {weatherLabel}
+              </Text>
+            )}
+          </View>
         </View>
 
         {active ? (
@@ -496,7 +504,15 @@ export default function HomeScreen() {
             hex={hex}
           />
         ) : (
-          <View style={[styles.panel, { backgroundColor: hex.surface }]}>
+          <View
+            style={[
+              styles.panel,
+              {
+                backgroundColor: hex.elevated,
+                borderColor: hex.border,
+              },
+            ]}
+          >
             <Text style={[styles.sectionTitle, { color: hex.text }]}>
               Ready to punch in
             </Text>
@@ -539,7 +555,7 @@ export default function HomeScreen() {
               <Text
                 style={[styles.secondaryActionLabel, { color: ACCENT.primary }]}
               >
-                Choose role
+                Choose another role
               </Text>
             </TouchableOpacity>
           </View>
@@ -568,18 +584,37 @@ export default function HomeScreen() {
                       styles.pill,
                       { backgroundColor: `${role.color}12` },
                       isActiveRole && {
-                        borderWidth: StyleSheet.hairlineWidth,
-                        borderColor: `${role.color}50`,
+                        borderWidth: 1,
+                        borderColor: `${role.color}66`,
+                        backgroundColor: `${role.color}20`,
                       },
                     ]}
                     activeOpacity={0.7}
                   >
-                    <View
-                      style={[styles.pillDot, { backgroundColor: role.color }]}
+                    <RoleIcon
+                      icon={role.icon}
+                      color={role.color}
+                      size={12}
+                      bgSize={22}
+                      showBg={false}
                     />
-                    <Text style={[styles.pillLabel, { color: hex.text }]}>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.pillLabel,
+                        { color: isActiveRole ? role.color : hex.text },
+                      ]}
+                    >
                       {role.name}
                     </Text>
+                    {isActiveRole ? (
+                      <View
+                        style={[
+                          styles.activePillDot,
+                          { backgroundColor: role.color },
+                        ]}
+                      />
+                    ) : null}
                   </TouchableOpacity>
                 );
               })}
@@ -587,8 +622,13 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={[styles.summaryPanel, { backgroundColor: hex.surface }]}>
-          <Text style={[styles.summaryTitle, { color: hex.textTertiary }]}>
+        <View
+          style={[
+            styles.summaryPanel,
+            { backgroundColor: hex.elevated, borderColor: hex.border },
+          ]}
+        >
+          <Text style={[styles.summaryTitle, { color: hex.textSecondary }]}>
             Today at a glance
           </Text>
           <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
@@ -604,9 +644,7 @@ export default function HomeScreen() {
               Active now
             </Text>
             <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {todaySummary.activePunchIns > 0
-                ? formatDurationShort(todaySummary.activeMs)
-                : "No active session"}
+              {activeNowLabel}
             </Text>
           </View>
           <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
@@ -623,18 +661,43 @@ export default function HomeScreen() {
             <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>
               Most time today
             </Text>
-            <Text style={[styles.summaryValue, { color: hex.text }]}>
+            <Text style={[styles.summaryValueStrong, { color: hex.text }]}>
               {todaySummary.mostTimeToday || "—"}
             </Text>
           </View>
         </View>
         <TouchableOpacity
           onPress={() => router.push("/(root)/logs")}
-          style={styles.viewLogsLink}
+          style={[
+            styles.logsRow,
+            { backgroundColor: hex.elevated, borderColor: hex.border },
+          ]}
           activeOpacity={0.75}
         >
-          <Text style={[styles.viewLogsLinkText, { color: ACCENT.primary }]}>
-            View all logs
+          <View style={styles.logsRowLeft}>
+            <View
+              style={[
+                styles.logsGlyphWrap,
+                { backgroundColor: `${ACCENT.primary}1f` },
+              ]}
+            >
+              <Text style={[styles.logsGlyph, { color: ACCENT.primary }]}>
+                ↗
+              </Text>
+            </View>
+            <View>
+              <Text style={[styles.logsRowTitle, { color: hex.text }]}>
+                View all logs
+              </Text>
+              <Text
+                style={[styles.logsRowSubtitle, { color: hex.textSecondary }]}
+              >
+                Review entries and edits
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.logsChevron, { color: hex.textTertiary }]}>
+            ›
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -683,43 +746,68 @@ const styles = StyleSheet.create({
   panel: {
     borderRadius: RADIUS.card,
     padding: 16,
-    marginBottom: 18,
-  },
-  headerBlock: {
     marginBottom: 14,
+    borderWidth: 1,
+  },
+  headerCard: {
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
   },
   headerTopRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
   },
+  headerContextBlock: {
+    flex: 1,
+    paddingTop: 1,
+  },
   greeting: {
-    ...TYPOGRAPHY.sectionTitle,
+    ...TYPOGRAPHY.cardTitle,
+    fontSize: 18,
+    lineHeight: 23,
     marginBottom: 2,
     flexShrink: 1,
   },
+  timeBlock: {
+    alignItems: "flex-end",
+    minWidth: 112,
+  },
+  timeLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginBottom: 1,
+  },
   currentTime: {
-    fontSize: 24,
-    fontWeight: "800",
-    lineHeight: 30,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 22,
     fontVariant: ["tabular-nums"],
   },
   currentDate: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
   },
   weatherBadge: {
-    minWidth: 86,
-    height: 28,
+    minHeight: 24,
+    marginTop: 7,
     borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    alignItems: "center",
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: "flex-start",
     justifyContent: "center",
+    alignSelf: "flex-start",
+    maxWidth: "92%",
   },
   weatherLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
   },
   primaryButton: {
@@ -746,7 +834,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.sectionTitle,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   helperText: {
     fontSize: 13,
@@ -754,58 +842,62 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   recentSection: {
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: 0,
+    marginBottom: 10,
   },
   sectionLabel: {
     ...TYPOGRAPHY.metadata,
     marginBottom: 8,
   },
   recentPills: {
-    gap: 6,
+    gap: 8,
+    paddingRight: 18,
   },
   pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
     borderRadius: RADIUS.pill,
+    maxWidth: 176,
   },
-  pillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  activePillDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   pillLabel: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
+    flexShrink: 1,
   },
   summaryPanel: {
     borderRadius: RADIUS.card,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   summaryTitle: {
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   summaryRowLast: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
   summaryLabel: {
     fontSize: 13,
@@ -815,9 +907,62 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 16,
     fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+    paddingLeft: 12,
+    textAlign: "right",
+    flexShrink: 1,
+  },
+  summaryValueStrong: {
+    fontSize: 17,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    paddingLeft: 12,
+    textAlign: "right",
+    flexShrink: 1,
+  },
+  logsRow: {
+    marginTop: 10,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  logsRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  logsGlyphWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logsGlyph: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  logsRowTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  logsRowSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 16,
+  },
+  logsChevron: {
+    fontSize: 24,
+    lineHeight: 24,
+    marginLeft: 8,
   },
   viewLogsLink: {
-    alignSelf: "flex-start",
     marginTop: 12,
     paddingVertical: 6,
     paddingHorizontal: 2,
