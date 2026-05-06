@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { getDb } from "./database";
 import { generateId } from "@/utils/uuid";
+import { startOfLocalDay, startOfNextLocalDay } from "@/utils/localDate";
 import type { Session, SessionWithRole, SessionSource } from "@/types";
 
 export type RoleHistorySummary = {
@@ -264,17 +265,10 @@ export async function deleteSession(id: string): Promise<void> {
 
 export async function getTodaySessions(): Promise<SessionWithRole[]> {
   const now = new Date();
-  const startOfDay = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).toISOString();
-  const endOfDay = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-  ).toISOString();
-  return getSessionsByDateRange(startOfDay, endOfDay);
+  return getSessionsByDateRange(
+    startOfLocalDay(now).toISOString(),
+    startOfNextLocalDay(now).toISOString(),
+  );
 }
 
 export async function getLastEngagedRoleId(): Promise<string | null> {

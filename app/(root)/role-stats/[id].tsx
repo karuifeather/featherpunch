@@ -18,6 +18,7 @@ import {
   getRollingRangeQueryBounds,
   type RollingRangePreset,
 } from '@/utils/dateRanges';
+import { formatLocalDayLabel, getLocalDayKey } from '@/utils/localDate';
 import { deriveRoleRangeEmptyState } from '@/utils/roleRangeEmptyState';
 import type { Role } from '@/types';
 import type { SessionWithRole } from '@/types';
@@ -28,14 +29,6 @@ const MIN_ACTIVE_DAYS_FOR_CHART = 5;
 function formatTimeRange(startAt: string, endAt: string | null): string {
   if (!endAt) return formatTime(startAt) + ' – —';
   return `${formatTime(startAt)} – ${formatTime(endAt)}`;
-}
-
-function toLocalDateKey(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 /** Pick a y-axis max so the chart scales to the data (hours). Uses nice steps. */
@@ -51,14 +44,6 @@ type Period = '7d' | '30d';
 
 function getPresetFromPeriod(period: Period): RollingRangePreset {
   return period === '7d' ? 'last7Days' : 'last30Days';
-}
-
-/** Start of current year and end of today (ISO). For YTD and range fetches. */
-function getYearToDateRange(): { start: string; end: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 /** Total ms for completed sessions within [startIso, endIso). */
@@ -118,8 +103,10 @@ function refetchSessions(
   getSessionsByRoleAndDateRange(roleId, selectedBounds.startIso, selectedBounds.endExclusiveIso).then(
     setSessions
   );
-  const ytd = getYearToDateRange();
-  getSessionsByRoleAndDateRange(roleId, ytd.start, ytd.end).then(setSessionsForRanges);
+  const widestRollingBounds = getRollingRangeQueryBounds(getRollingRange('last90Days'));
+  getSessionsByRoleAndDateRange(roleId, widestRollingBounds.startIso, widestRollingBounds.endExclusiveIso).then(
+    setSessionsForRanges
+  );
 }
 
 export default function RoleStatsScreen() {
@@ -164,13 +151,10 @@ export default function RoleStatsScreen() {
     const last7 = getRollingRangeQueryBounds(getRollingRange('last7Days', now));
     const last30 = getRollingRangeQueryBounds(getRollingRange('last30Days', now));
     const last90 = getRollingRangeQueryBounds(getRollingRange('last90Days', now));
-    const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString();
-    const endExclusive = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
     return {
       '7d': totalMsInRange(sessionsForRanges, last7.startIso, last7.endExclusiveIso),
       '30d': totalMsInRange(sessionsForRanges, last30.startIso, last30.endExclusiveIso),
       '90d': totalMsInRange(sessionsForRanges, last90.startIso, last90.endExclusiveIso),
-      ytd: totalMsInRange(sessionsForRanges, ytdStart, endExclusive),
     };
   }, [sessionsForRanges]);
 
@@ -280,7 +264,7 @@ export default function RoleStatsScreen() {
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, SessionWithRole[]>();
     for (const s of logSessionsToShow) {
-      const key = toLocalDateKey(s.startAt);
+      const key = getLocalDayKey(s.startAt);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     }
@@ -627,18 +611,7 @@ export default function RoleStatsScreen() {
             ) : (
               <View style={{ gap: 16 }}>
                 {sessionsByDay.map(({ dateKey, sessions: daySessions }) => {
-                  const dayLabel = (() => {
-                    const iso = daySessions[0]?.startAt ?? '';
-                    const d = new Date(iso);
-                    const today = new Date();
-                    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear())
-                      return 'Today';
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear())
-                      return 'Yesterday';
-                    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                  })();
+                  const dayLabel = formatLocalDayLabel(daySessions[0]?.startAt ?? dateKey);
                   return (
                     <View key={dateKey}>
                       <Text

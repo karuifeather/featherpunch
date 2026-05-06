@@ -1,4 +1,7 @@
-import { getRollingRange, getRollingRangeQueryBounds } from "@/utils/dateRanges";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+} from "@/utils/dateRanges";
 
 describe("getRollingRange", () => {
   const fixedNow = new Date(2026, 4, 6, 13, 45, 10, 125);
@@ -73,5 +76,29 @@ describe("getRollingRange", () => {
     expect(endExclusive.getMinutes()).toBe(0);
     expect(endExclusive.getSeconds()).toBe(0);
     expect(endExclusive.getMilliseconds()).toBe(0);
+  });
+
+  it("includes prior-year days for Last 7 days near Jan 2", () => {
+    const jan2 = new Date(2026, 0, 2, 10, 0, 0, 0);
+    const range = getRollingRange("last7Days", jan2);
+
+    expect(range.start.getFullYear()).toBe(2025);
+    expect(range.start.getMonth()).toBe(11);
+    expect(range.start.getDate()).toBe(27);
+    expect(range.end.getFullYear()).toBe(2026);
+    expect(range.end.getMonth()).toBe(0);
+    expect(range.end.getDate()).toBe(2);
+  });
+
+  it("includes prior-year days for Last 30 days near Jan 2", () => {
+    const jan2 = new Date(2026, 0, 2, 10, 0, 0, 0);
+    const range = getRollingRange("last30Days", jan2);
+
+    expect(range.start.getFullYear()).toBe(2025);
+    expect(range.start.getMonth()).toBe(11);
+    expect(range.start.getDate()).toBe(4);
+    expect(range.end.getFullYear()).toBe(2026);
+    expect(range.end.getMonth()).toBe(0);
+    expect(range.end.getDate()).toBe(2);
   });
 });

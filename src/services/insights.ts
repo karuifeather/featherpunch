@@ -1,5 +1,6 @@
-import type { AnalyticsSummary, SessionWithRole, InsightCard } from '@/types';
-import { generateId } from '@/utils/uuid';
+import type { AnalyticsSummary, SessionWithRole, InsightCard } from "@/types";
+import { generateId } from "@/utils/uuid";
+import { getLocalDayKey } from "@/utils/localDate";
 
 const MIN_LOGS_FOR_INSIGHTS = 3;
 const MIN_DAYS_FOR_TRENDS = 2;
@@ -13,15 +14,13 @@ function formatDuration(ms: number): string {
 
 function getUniqueDayCount(sessions: SessionWithRole[]): number {
   const completed = sessions.filter((s) => s.endAt != null);
-  const daySet = new Set(
-    completed.map((s) => new Date(s.startAt).toISOString().split('T')[0])
-  );
+  const daySet = new Set(completed.map((s) => getLocalDayKey(s.startAt)));
   return daySet.size;
 }
 
 export function hasEnoughDataForInsights(
   sessions: SessionWithRole[],
-  minLogs = MIN_LOGS_FOR_INSIGHTS
+  minLogs = MIN_LOGS_FOR_INSIGHTS,
 ): boolean {
   const completed = sessions.filter((s) => s.endAt != null);
   return completed.length >= minLogs;
@@ -34,7 +33,7 @@ export function hasEnoughDataForTrends(sessions: SessionWithRole[]): boolean {
 /** Today insights — only when enough data. Minimal, professional copy. */
 export function generateTodayInsights(
   todaySessions: SessionWithRole[],
-  analytics: AnalyticsSummary
+  analytics: AnalyticsSummary,
 ): InsightCard[] {
   const completed = todaySessions.filter((s) => s.endAt != null);
   if (completed.length < MIN_LOGS_FOR_INSIGHTS) return [];
@@ -47,7 +46,7 @@ export function generateTodayInsights(
       cards.push({
         id: generateId(),
         text: `Most time today: ${top.roleName}`,
-        type: 'neutral',
+        type: "neutral",
       });
     }
   }
@@ -56,7 +55,9 @@ export function generateTodayInsights(
 }
 
 /** Weekly insights — thresholds: min 3 logs, min 2 days for trends. */
-export function generateWeeklyInsights(analytics: AnalyticsSummary): InsightCard[] {
+export function generateWeeklyInsights(
+  analytics: AnalyticsSummary,
+): InsightCard[] {
   const { roleStats, sessionCount } = analytics;
 
   if (sessionCount < MIN_LOGS_FOR_INSIGHTS) return [];
@@ -69,7 +70,7 @@ export function generateWeeklyInsights(analytics: AnalyticsSummary): InsightCard
       cards.push({
         id: generateId(),
         text: `Most time: ${top.roleName} (${formatDuration(top.totalMs)})`,
-        type: 'neutral',
+        type: "neutral",
       });
     }
   }
