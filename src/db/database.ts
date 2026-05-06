@@ -50,6 +50,24 @@ async function runMigrations(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_sessions_end_at ON sessions(end_at);
     CREATE INDEX IF NOT EXISTS idx_roles_is_archived ON roles(is_archived);
   `);
+  await ensureSessionSnapshotColumns(db);
+}
+
+async function ensureSessionSnapshotColumns(db: SQLite.SQLiteDatabase) {
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(sessions)",
+  );
+  const columnNames = new Set(columns.map((column) => column.name));
+  if (!columnNames.has("hourly_rate_snapshot")) {
+    await db.execAsync(
+      "ALTER TABLE sessions ADD COLUMN hourly_rate_snapshot REAL",
+    );
+  }
+  if (!columnNames.has("estimated_earnings_snapshot")) {
+    await db.execAsync(
+      "ALTER TABLE sessions ADD COLUMN estimated_earnings_snapshot REAL",
+    );
+  }
 }
 
 export async function closeDb() {

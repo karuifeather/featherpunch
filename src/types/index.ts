@@ -20,6 +20,8 @@ export interface Session {
   startAt: string;
   endAt: string | null;
   durationMs: number | null;
+  hourlyRateSnapshot: number | null;
+  estimatedEarningsSnapshot: number | null;
   source: SessionSource;
   notes: string | null;
   createdAt: string;
@@ -31,6 +33,7 @@ export interface SessionWithRole extends Session {
   roleColor: string;
   roleIcon: string;
   roleTag: RoleTag;
+  roleCurrentHourlyRate: number | null;
   roleHourlyRate: number | null;
 }
 
@@ -41,6 +44,7 @@ export interface SessionLogEntry {
   roleColor: string;
   roleIcon: string;
   roleHourlyRate?: number | null;
+  estimatedEarnings?: number | null;
   startAt: string;
   endAt: string;
   durationMs: number;
@@ -116,7 +120,8 @@ export interface AnalyticsSummary {
   roleStats: RoleStat[];
   sessionCount: number;
   avgSessionMs: number;
-  mostFrequentRole: string | null;
+  topRoleByDuration: RoleStat | null;
+  topRoleBySessionCount: RoleStat | null;
   longestSessionMs: number;
   switchesPerDay: number;
 }

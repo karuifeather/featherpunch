@@ -65,6 +65,9 @@ export function SessionEditorContent({
           startAt: r.start_at as string,
           endAt: (r.end_at as string) || null,
           durationMs: r.duration_ms as number | null,
+          hourlyRateSnapshot: (r.hourly_rate_snapshot as number) ?? null,
+          estimatedEarningsSnapshot:
+            (r.estimated_earnings_snapshot as number) ?? null,
           source: r.source as SessionWithRole["source"],
           notes: (r.notes as string) || null,
           createdAt: r.created_at as string,
@@ -73,7 +76,11 @@ export function SessionEditorContent({
           roleColor: r.role_color as string,
           roleIcon: r.role_icon as string,
           roleTag: r.role_tag as SessionWithRole["roleTag"],
-          roleHourlyRate: r.role_hourly_rate as number | null,
+          roleCurrentHourlyRate: r.role_hourly_rate as number | null,
+          roleHourlyRate:
+            (r.hourly_rate_snapshot as number) ??
+            null ??
+            (r.role_hourly_rate as number | null),
         };
         setSession(s);
         setStartAt(s.startAt);

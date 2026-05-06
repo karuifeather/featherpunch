@@ -83,11 +83,14 @@ function getSessionCell(
     case "hourly_rate_at_time":
       return s.roleHourlyRate != null ? String(s.roleHourlyRate) : "";
     case "estimated_value":
-      return s.durationMs && s.roleHourlyRate
-        ? String(
-            Math.round((s.durationMs / 3600000) * s.roleHourlyRate * 100) / 100,
-          )
-        : "";
+      return s.estimatedEarningsSnapshot != null
+        ? String(Math.round(s.estimatedEarningsSnapshot * 100) / 100)
+        : s.durationMs && s.roleHourlyRate
+          ? String(
+              Math.round((s.durationMs / 3600000) * s.roleHourlyRate * 100) /
+                100,
+            )
+          : "";
     case "source":
       return s.source;
     case "notes":
@@ -139,9 +142,11 @@ function formatMoneyNumber(value: number): string {
 function toLogsExportRow(session: SessionLogEntry): string[] {
   const hourlyRate = session.roleHourlyRate ?? null;
   const estimatedEarnings =
-    hourlyRate == null
-      ? ""
-      : formatMoneyNumber((session.durationMs / 3600000) * hourlyRate);
+    session.estimatedEarnings != null
+      ? formatMoneyNumber(session.estimatedEarnings)
+      : hourlyRate == null
+        ? ""
+        : formatMoneyNumber((session.durationMs / 3600000) * hourlyRate);
   return [
     getLocalDayKey(session.startAt),
     escapeCsv(session.roleName),
@@ -177,6 +182,10 @@ export function sessionLogsToCsv(
         roleIcon: session.roleIcon,
         roleHourlyRate:
           "roleHourlyRate" in session ? (session.roleHourlyRate ?? null) : null,
+        estimatedEarnings:
+          "estimatedEarningsSnapshot" in session
+            ? (session.estimatedEarningsSnapshot ?? null)
+            : null,
         startAt: session.startAt,
         endAt: session.endAt as string,
         durationMs,

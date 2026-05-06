@@ -30,6 +30,9 @@ function rowToSession(row: Record<string, unknown>): Session {
     startAt: row.start_at as string,
     endAt: (row.end_at as string) || null,
     durationMs: row.duration_ms as number | null,
+    hourlyRateSnapshot: (row.hourly_rate_snapshot as number) ?? null,
+    estimatedEarningsSnapshot:
+      (row.estimated_earnings_snapshot as number) ?? null,
     source: row.source as SessionSource,
     notes: (row.notes as string) || null,
     createdAt: row.created_at as string,
@@ -38,13 +41,16 @@ function rowToSession(row: Record<string, unknown>): Session {
 }
 
 function rowToSessionWithRole(row: Record<string, unknown>): SessionWithRole {
+  const hourlyRateSnapshot = (row.hourly_rate_snapshot as number) ?? null;
+  const roleCurrentHourlyRate = (row.role_hourly_rate as number) ?? null;
   return {
     ...rowToSession(row),
     roleName: row.role_name as string,
     roleColor: row.role_color as string,
     roleIcon: row.role_icon as string,
     roleTag: row.role_tag as SessionWithRole["roleTag"],
-    roleHourlyRate: row.role_hourly_rate as number | null,
+    roleCurrentHourlyRate,
+    roleHourlyRate: hourlyRateSnapshot ?? roleCurrentHourlyRate,
   };
 }
 
@@ -73,8 +79,8 @@ export async function startSession(roleId: string): Promise<Session> {
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO sessions (id, role_id, start_at, end_at, duration_ms, source, notes, created_at, updated_at)
-     VALUES (?, ?, ?, NULL, NULL, 'manual', NULL, ?, ?)`,
+    `INSERT INTO sessions (id, role_id, start_at, end_at, duration_ms, hourly_rate_snapshot, estimated_earnings_snapshot, source, notes, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, NULL, NULL, NULL, 'manual', NULL, ?, ?)`,
     [id, roleId, now, now, now],
   );
 
@@ -84,6 +90,8 @@ export async function startSession(roleId: string): Promise<Session> {
     startAt: now,
     endAt: null,
     durationMs: null,
+    hourlyRateSnapshot: null,
+    estimatedEarningsSnapshot: null,
     source: "manual",
     notes: null,
     createdAt: now,
@@ -95,18 +103,38 @@ export async function endSession(sessionId: string): Promise<void> {
   const db = await getDb();
   const now = new Date().toISOString();
 
-  const session = await db.getFirstAsync<{ start_at: string }>(
-    "SELECT start_at FROM sessions WHERE id = ?",
+  const session = await db.getFirstAsync<{
+    start_at: string;
+    role_id: string;
+    role_hourly_rate: number | null;
+  }>(
+    `SELECT s.start_at, s.role_id, r.hourly_rate AS role_hourly_rate
+     FROM sessions s
+     JOIN roles r ON r.id = s.role_id
+     WHERE s.id = ?`,
     [sessionId],
   );
   if (!session) return;
 
   const durationMs =
     new Date(now).getTime() - new Date(session.start_at).getTime();
+  const hourlyRateSnapshot =
+    session.role_hourly_rate == null ? null : Number(session.role_hourly_rate);
+  const estimatedEarningsSnapshot =
+    hourlyRateSnapshot == null
+      ? null
+      : (durationMs / 3_600_000) * hourlyRateSnapshot;
 
   await db.runAsync(
-    "UPDATE sessions SET end_at = ?, duration_ms = ?, updated_at = ? WHERE id = ?",
-    [now, durationMs, now, sessionId],
+    "UPDATE sessions SET end_at = ?, duration_ms = ?, hourly_rate_snapshot = ?, estimated_earnings_snapshot = ?, updated_at = ? WHERE id = ?",
+    [
+      now,
+      durationMs,
+      hourlyRateSnapshot,
+      estimatedEarningsSnapshot,
+      now,
+      sessionId,
+    ],
   );
 }
 
@@ -272,6 +300,7 @@ async function queryCompletedSessionLogs(options: {
       roleColor: mapped.roleColor,
       roleIcon: mapped.roleIcon,
       roleHourlyRate: mapped.roleHourlyRate,
+      estimatedEarnings: mapped.estimatedEarningsSnapshot,
       startAt: mapped.startAt,
       endAt: mapped.endAt ?? mapped.startAt,
       durationMs:
@@ -327,14 +356,15 @@ export async function getCompletedSessionLogSummary(options: {
   const row = await db.getFirstAsync<{
     completed_session_count: number | null;
     total_duration_ms: number | null;
-    role_hourly_rate: number | null;
+    avg_hourly_rate_snapshot: number | null;
+    total_estimated_earnings_snapshot: number | null;
   }>(
     `SELECT
       COUNT(*) AS completed_session_count,
       COALESCE(SUM(s.duration_ms), 0) AS total_duration_ms,
-      r.hourly_rate AS role_hourly_rate
+      AVG(s.hourly_rate_snapshot) AS avg_hourly_rate_snapshot,
+      SUM(s.estimated_earnings_snapshot) AS total_estimated_earnings_snapshot
     FROM sessions s
-    JOIN roles r ON r.id = s.role_id
     WHERE ${where.join(" AND ")}`,
     params,
   );
@@ -342,9 +372,13 @@ export async function getCompletedSessionLogSummary(options: {
   const completedSessionCount = Number(row?.completed_session_count ?? 0);
   const totalDurationMs = Number(row?.total_duration_ms ?? 0);
   const hourlyRate =
-    row?.role_hourly_rate == null ? null : Number(row.role_hourly_rate);
+    row?.avg_hourly_rate_snapshot == null
+      ? null
+      : Number(row.avg_hourly_rate_snapshot);
   const estimatedEarnings =
-    hourlyRate == null ? null : (totalDurationMs / 3_600_000) * hourlyRate;
+    row?.total_estimated_earnings_snapshot == null
+      ? null
+      : Number(row.total_estimated_earnings_snapshot);
 
   return {
     roleId: options.roleId,
@@ -509,7 +543,8 @@ export async function updateSession(
     const row = await db.getFirstAsync<{
       start_at: string;
       end_at: string | null;
-    }>("SELECT start_at, end_at FROM sessions WHERE id = ?", [id]);
+      role_id: string;
+    }>("SELECT start_at, end_at, role_id FROM sessions WHERE id = ?", [id]);
     if (row) {
       const s = params.startAt ?? row.start_at;
       const e = params.endAt !== undefined ? params.endAt : row.end_at;
@@ -517,8 +552,27 @@ export async function updateSession(
         const dur = new Date(e).getTime() - new Date(s).getTime();
         sets.splice(sets.length - 2, 0, "duration_ms = ?");
         values.splice(values.length - 2, 0, dur);
+        const effectiveRoleId = params.roleId ?? row.role_id;
+        const roleRow = await db.getFirstAsync<{ hourly_rate: number | null }>(
+          "SELECT hourly_rate FROM roles WHERE id = ?",
+          [effectiveRoleId],
+        );
+        const hourlyRateSnapshot =
+          roleRow?.hourly_rate == null ? null : Number(roleRow.hourly_rate);
+        const estimatedEarningsSnapshot =
+          hourlyRateSnapshot == null
+            ? null
+            : (dur / 3_600_000) * hourlyRateSnapshot;
+        sets.splice(sets.length - 2, 0, "hourly_rate_snapshot = ?");
+        values.splice(values.length - 2, 0, hourlyRateSnapshot);
+        sets.splice(sets.length - 2, 0, "estimated_earnings_snapshot = ?");
+        values.splice(values.length - 2, 0, estimatedEarningsSnapshot);
       } else if (params.endAt !== undefined) {
         sets.splice(sets.length - 2, 0, "duration_ms = ?");
+        values.splice(values.length - 2, 0, null);
+        sets.splice(sets.length - 2, 0, "hourly_rate_snapshot = ?");
+        values.splice(values.length - 2, 0, null);
+        sets.splice(sets.length - 2, 0, "estimated_earnings_snapshot = ?");
         values.splice(values.length - 2, 0, null);
       }
     }

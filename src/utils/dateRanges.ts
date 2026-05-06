@@ -35,7 +35,7 @@ function formatMonthDay(input: Date): string {
 }
 
 function formatDisplayRange(start: Date, end: Date): string {
-  return `${formatMonthDay(start)} - ${formatMonthDay(end)}`;
+  return `${formatMonthDay(start)}–${formatMonthDay(end)}`;
 }
 
 export function getRollingRange(

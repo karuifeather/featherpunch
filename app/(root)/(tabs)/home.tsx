@@ -341,7 +341,7 @@ export default function HomeScreen() {
   }, [todaySessions, activeRoles]);
 
   const selectedRole = selectedRoleId
-    ? activeRoles.find((r) => r.id === selectedRoleId)
+    ? (activeRoles.find((r) => r.id === selectedRoleId) ?? null)
     : null;
   const lastEngagedRole = resolveLastEngagedRole(
     lastEngagedRoleId,

@@ -47,7 +47,7 @@ describe("getRollingRange", () => {
 
   it("returns stable display range for fixed date", () => {
     const range = getRollingRange("last30Days", fixedNow);
-    expect(range.displayRange).toBe("Apr 7 - May 6");
+    expect(range.displayRange).toBe("Apr 7–May 6");
   });
 
   it("uses local-day boundaries for start and end", () => {

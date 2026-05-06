@@ -15,7 +15,10 @@ interface InsightCardProps {
   insight: InsightCardType;
 }
 
-/** Editorial, minimal. No italics, flat styling. */
+/**
+ * Legacy card for the older generated-insights pipeline.
+ * Kept for backward compatibility while active Insights UI is rendered directly in stats screen.
+ */
 export function InsightCard({ insight }: InsightCardProps) {
   const { hex } = useThemeColors();
   const accentColor = TYPE_COLORS[insight.type];

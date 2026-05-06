@@ -63,6 +63,9 @@ export function computeAnalytics(
       avgSessionMs: r.count > 0 ? r.totalMs / r.count : 0,
     }))
     .sort((a, b) => b.totalMs - a.totalMs);
+  const rolesBySessionCount = [...roleStats].sort(
+    (a, b) => b.sessionCount - a.sessionCount || b.totalMs - a.totalMs,
+  );
 
   const daySet = new Set(completed.map((s) => getLocalDayKey(s.startAt)));
   const dayCount = Math.max(daySet.size, 1);
@@ -76,10 +79,55 @@ export function computeAnalytics(
     roleStats,
     sessionCount: completed.length,
     avgSessionMs: completed.length > 0 ? totalMs / completed.length : 0,
-    mostFrequentRole: roleStats.length > 0 ? roleStats[0].roleName : null,
+    topRoleByDuration: roleStats[0] ?? null,
+    topRoleBySessionCount: rolesBySessionCount[0] ?? null,
     longestSessionMs: longestMs,
     switchesPerDay: Math.round(switchesPerDay * 10) / 10,
   };
+}
+
+export function getPreviousRollingRange(preset: "7d" | "30d" | "90d"): {
+  startIso: string;
+  endExclusiveIso: string;
+} {
+  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90;
+  const currentRange = getRollingRange(
+    preset === "7d"
+      ? "last7Days"
+      : preset === "30d"
+        ? "last30Days"
+        : "last90Days",
+  );
+  const currentBounds = getRollingRangeQueryBounds(currentRange);
+  const previousEndExclusive = new Date(currentBounds.startIso);
+  const previousStart = new Date(previousEndExclusive);
+  previousStart.setDate(previousStart.getDate() - days);
+  return {
+    startIso: previousStart.toISOString(),
+    endExclusiveIso: previousEndExclusive.toISOString(),
+  };
+}
+
+export function formatComparisonDurationCopy(
+  currentMs: number,
+  previousMs: number,
+  label: string,
+): string {
+  if (previousMs === 0 && currentMs === 0)
+    return `No ${label} in either period`;
+  if (previousMs === 0 && currentMs > 0) return "New activity this period";
+  const diff = currentMs - previousMs;
+  const absMs = Math.abs(diff);
+  const sign = diff >= 0 ? "+" : "-";
+  return `${sign}${formatDuration(absMs)} vs previous ${label}`;
+}
+
+function formatDuration(ms: number): string {
+  const totalMin = Math.round(ms / 60000);
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 /** Returns daily time breakdown for charting (value in hours, label for x-axis) */

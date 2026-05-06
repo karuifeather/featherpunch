@@ -35,11 +35,20 @@ export type LogsRangeFilter =
   | "last90Days"
   | "custom"
   | "all";
+type RollingLogsRangeFilter = Exclude<LogsRangeFilter, "custom" | "all">;
 
 export type CustomDateRange = {
   startDate: string;
   endDate: string;
 };
+
+function isRollingLogsRangeFilter(
+  range: LogsRangeFilter,
+): range is RollingLogsRangeFilter {
+  return (
+    range === "last7Days" || range === "last30Days" || range === "last90Days"
+  );
+}
 
 export function groupSessionLogsByLocalDay(
   entries: SessionLogEntry[],
@@ -281,6 +290,7 @@ export function getLogsRangeSummaryText(options: {
   }
   if (selectedRange === "custom") return "Custom";
 
+  if (!isRollingLogsRangeFilter(selectedRange)) return "Custom";
   const range = getRollingRange(selectedRange);
   return `${range.label} · ${range.displayRange}`;
 }
@@ -293,6 +303,7 @@ export function formatSelectedRangeLabel(options: {
     return `Custom (${getCustomRangeDisplayLabel(options.customRange)})`;
   }
   if (options.selectedRange === "all") return "All";
+  if (!isRollingLogsRangeFilter(options.selectedRange)) return "Custom";
   return getRollingRange(options.selectedRange).label;
 }
 
