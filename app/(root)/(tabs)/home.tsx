@@ -9,6 +9,8 @@ import {
   AppStateStatus,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -67,6 +69,17 @@ export default function HomeScreen() {
   const [weatherTempUnit, setWeatherTempUnit] = useState<"C" | "F">("C");
   const [weatherLoading, setWeatherLoading] = useState(true);
   const activeRoles = roles.filter((r) => !r.isArchived);
+  const clockTickAnim = useState(() => new Animated.Value(0))[0];
+  const currentTimeText = useMemo(
+    () =>
+      now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }),
+    [now],
+  );
 
   const loadLastEngagedRole = useCallback(async () => {
     const savedRoleId = await getSetting("last_engaged_role_id");
@@ -187,6 +200,16 @@ export default function HomeScreen() {
     const intervalId = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    clockTickAnim.setValue(0);
+    Animated.timing(clockTickAnim, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [currentTimeText, clockTickAnim]);
 
   useEffect(() => {
     fetchWeather();
@@ -380,14 +403,28 @@ export default function HomeScreen() {
                   ? "Good afternoon"
                   : "Good evening"}
             </Text>
-            <Text style={[styles.currentTime, { color: hex.textSecondary }]}>
-              {now.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: false,
-              })}
-            </Text>
+            <Animated.Text
+              style={[
+                styles.currentTime,
+                {
+                  color: hex.textSecondary,
+                  opacity: clockTickAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.72, 1],
+                  }),
+                  transform: [
+                    {
+                      scale: clockTickAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.985, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {currentTimeText}
+            </Animated.Text>
           </View>
           <Text style={[styles.currentDate, { color: hex.textSecondary }]}>
             {now.toLocaleDateString([], {
@@ -604,10 +641,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   currentTime: {
-    fontSize: 17,
-    fontWeight: "700",
-    lineHeight: 22,
-    opacity: 0.75,
+    fontSize: 24,
+    fontWeight: "800",
+    lineHeight: 30,
     fontVariant: ["tabular-nums"],
   },
   currentDate: {
