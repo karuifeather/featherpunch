@@ -3,6 +3,14 @@ import { getDb } from './database';
 import { generateId } from '@/utils/uuid';
 import type { Session, SessionWithRole, SessionSource } from '@/types';
 
+export type RoleHistorySummary = {
+  roleId: string;
+  completedSessionCount: number;
+  firstSessionAt: string | null;
+  lastSessionAt: string | null;
+  lifetimeDurationMs: number;
+};
+
 function rowToSession(row: Record<string, unknown>): Session {
   return {
     id: row.id as string,
@@ -124,6 +132,33 @@ export async function getSessionsByRoleAndDateRange(
     [roleId, startDate, endDate]
   );
   return rows.map((r) => rowToSessionWithRole(r as Record<string, unknown>));
+}
+
+export async function getRoleHistorySummary(roleId: string): Promise<RoleHistorySummary> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{
+    completed_session_count: number | null;
+    first_session_at: string | null;
+    last_session_at: string | null;
+    lifetime_duration_ms: number | null;
+  }>(
+    `SELECT
+      COUNT(*) AS completed_session_count,
+      MIN(start_at) AS first_session_at,
+      MAX(start_at) AS last_session_at,
+      COALESCE(SUM(duration_ms), 0) AS lifetime_duration_ms
+    FROM sessions
+    WHERE role_id = ? AND end_at IS NOT NULL`,
+    [roleId]
+  );
+
+  return {
+    roleId,
+    completedSessionCount: Number(row?.completed_session_count ?? 0),
+    firstSessionAt: row?.first_session_at ?? null,
+    lastSessionAt: row?.last_session_at ?? null,
+    lifetimeDurationMs: Number(row?.lifetime_duration_ms ?? 0),
+  };
 }
 
 export async function getRecentSessions(limit = 50): Promise<SessionWithRole[]> {

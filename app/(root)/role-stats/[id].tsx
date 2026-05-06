@@ -7,17 +7,18 @@ import { BarChart } from 'react-native-gifted-charts';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
 import { getRoleById } from '@/db/roles';
-import { getSessionsByRoleAndDateRange } from '@/db/sessions';
+import { getRoleHistorySummary, getSessionsByRoleAndDateRange } from '@/db/sessions';
 import { computeAnalytics, computeRoleTimeSeries } from '@/services/analytics';
 import { RoleIcon } from '@/components/role-icon';
 import { EdgeToEdgeScreen } from '@/components/screen-container';
 import { ACCENT, RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import { formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
+import { formatDate, formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
 import {
   getRollingRange,
   getRollingRangeQueryBounds,
   type RollingRangePreset,
 } from '@/utils/dateRanges';
+import { deriveRoleRangeEmptyState } from '@/utils/roleRangeEmptyState';
 import type { Role } from '@/types';
 import type { SessionWithRole } from '@/types';
 
@@ -130,6 +131,8 @@ export default function RoleStatsScreen() {
   const [role, setRole] = useState<Role | null | undefined>(undefined);
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
   const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>([]);
+  const [completedSessionCount, setCompletedSessionCount] = useState(0);
+  const [lastCompletedSessionAt, setLastCompletedSessionAt] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('7d');
   const prevSessionEditorId = useRef<string | null>(null);
 
@@ -137,12 +140,20 @@ export default function RoleStatsScreen() {
     useCallback(() => {
       if (!id) return;
       getRoleById(id).then((r) => setRole(r ?? null));
+      getRoleHistorySummary(id).then((summary) => {
+        setCompletedSessionCount(summary.completedSessionCount);
+        setLastCompletedSessionAt(summary.lastSessionAt);
+      });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
     }, [id, period])
   );
 
   useEffect(() => {
     if (prevSessionEditorId.current !== null && sessionEditorId === null && id) {
+      getRoleHistorySummary(id).then((summary) => {
+        setCompletedSessionCount(summary.completedSessionCount);
+        setLastCompletedSessionAt(summary.lastSessionAt);
+      });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
     }
     prevSessionEditorId.current = sessionEditorId;
@@ -230,6 +241,16 @@ export default function RoleStatsScreen() {
 
   const selectedRange = useMemo(() => getRollingRange(getPresetFromPeriod(period)), [period]);
   const primaryStat = `${formatDurationShort(totalMs)} in ${selectedRange.label.toLowerCase()}`;
+  const roleRangeEmptyState = useMemo(
+    () =>
+      deriveRoleRangeEmptyState({
+        period,
+        selectedRangeSessionCount: sessions.length,
+        completedSessionCount,
+        lastSessionAt: lastCompletedSessionAt,
+      }),
+    [period, sessions.length, completedSessionCount, lastCompletedSessionAt]
+  );
 
   const sessionsNewestFirst = useMemo(
     () => [...sessions].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()),
@@ -424,7 +445,7 @@ export default function RoleStatsScreen() {
         </Text>
 
         {/* 3. Trend section */}
-        {sessions.length === 0 ? (
+        {roleRangeEmptyState.kind !== 'none' ? (
           <View
             style={{
               backgroundColor: hex.surface,
@@ -435,14 +456,46 @@ export default function RoleStatsScreen() {
               borderColor: hex.border,
             }}
           >
-            <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
-              No time in this role for {selectedRange.label.toLowerCase()}
-            </Text>
-            <Text
-              style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
-            >
-              Punch in to {role.name} to see stats
-            </Text>
+            {roleRangeEmptyState.kind === 'noLogsEver' ? (
+              <>
+                <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
+                  No logs for this role yet
+                </Text>
+                <Text
+                  style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+                >
+                  Punch in to {role.name} to start building history.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
+                  No time in the {roleRangeEmptyState.rangeLabel}
+                </Text>
+                <Text
+                  style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+                >
+                  You last tracked {role.name} on {formatDate(roleRangeEmptyState.lastSessionAt)}.
+                </Text>
+                {roleRangeEmptyState.canSwitchToWiderRange ? (
+                  <TouchableOpacity
+                    onPress={() => setPeriod('30d')}
+                    style={{ alignSelf: 'center', marginTop: 14, paddingHorizontal: 8, paddingVertical: 4 }}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: ACCENT.primary }}>
+                      View last 30 days
+                    </Text>
+                  </TouchableOpacity>
+                ) : period === '30d' ? (
+                  <Text
+                    style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+                  >
+                    Older history exists, but historical browsing is not available yet.
+                  </Text>
+                ) : null}
+              </>
+            )}
           </View>
         ) : activeDaysInPeriod < MIN_ACTIVE_DAYS_FOR_CHART ? (
           <View
