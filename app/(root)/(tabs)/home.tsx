@@ -34,6 +34,17 @@ import { getSetting, setSetting } from "@/db/settings";
 import { getLastEngagedRoleId } from "@/db/sessions";
 import type { Role } from "@/types";
 
+const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+let weatherCache: {
+  weather: {
+    temperature: number;
+    weatherCode: number;
+  } | null;
+  locationName: string | null;
+  tempUnit: "C" | "F";
+  fetchedAtMs: number;
+} | null = null;
+
 export default function HomeScreen() {
   const router = useRouter();
   const { hex, bg } = useThemeColors();
@@ -62,12 +73,14 @@ export default function HomeScreen() {
   const [weather, setWeather] = useState<{
     temperature: number;
     weatherCode: number;
-  } | null>(null);
+  } | null>(weatherCache?.weather ?? null);
   const [weatherLocationName, setWeatherLocationName] = useState<string | null>(
-    null,
+    weatherCache?.locationName ?? null,
   );
-  const [weatherTempUnit, setWeatherTempUnit] = useState<"C" | "F">("C");
-  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherTempUnit, setWeatherTempUnit] = useState<"C" | "F">(
+    weatherCache?.tempUnit ?? "C",
+  );
+  const [weatherLoading, setWeatherLoading] = useState(weatherCache == null);
   const activeRoles = roles.filter((r) => !r.isArchived);
   const clockTickAnim = useState(() => new Animated.Value(0))[0];
   const currentTimeText = useMemo(
@@ -94,71 +107,107 @@ export default function HomeScreen() {
     loadLastEngagedRole();
   }, [refreshSessions, loadActiveSession, loadLastEngagedRole]);
 
-  const fetchWeather = useCallback(async () => {
-    try {
-      setWeatherLoading(true);
-      const [savedLat, savedLon, savedLabel, savedUnit] = await Promise.all([
-        getSetting("weather_latitude"),
-        getSetting("weather_longitude"),
-        getSetting("weather_label"),
-        getSetting("weather_temp_unit"),
-      ]);
-      const unit = savedUnit === "F" ? "F" : "C";
-      setWeatherTempUnit(unit);
-
-      let latitude = Number(savedLat);
-      let longitude = Number(savedLon);
-      const hasSavedCoords =
-        savedLat.trim().length > 0 &&
-        savedLon.trim().length > 0 &&
-        !Number.isNaN(latitude) &&
-        !Number.isNaN(longitude);
-
-      if (!hasSavedCoords) {
-        const locationResponse = await fetch("https://ipapi.co/json/");
-        if (!locationResponse.ok) throw new Error("location lookup failed");
-        const locationJson = (await locationResponse.json()) as {
-          latitude?: number;
-          longitude?: number;
-        };
-        if (locationJson.latitude == null || locationJson.longitude == null) {
-          throw new Error("missing location coordinates");
-        }
-        latitude = locationJson.latitude;
-        longitude = locationJson.longitude;
-      }
-
-      const weatherResponse = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=${unit === "F" ? "fahrenheit" : "celsius"}`,
-      );
-      if (!weatherResponse.ok) throw new Error("weather lookup failed");
-      const weatherJson = (await weatherResponse.json()) as {
-        current?: {
-          temperature_2m?: number;
-          weather_code?: number;
-        };
-      };
-
+  const fetchWeather = useCallback(
+    async (force = false) => {
       if (
-        weatherJson.current?.temperature_2m != null &&
-        weatherJson.current.weather_code != null
+        !force &&
+        weatherCache != null &&
+        Date.now() - weatherCache.fetchedAtMs < WEATHER_REFRESH_INTERVAL_MS
       ) {
-        setWeather({
-          temperature: Math.round(weatherJson.current.temperature_2m),
-          weatherCode: weatherJson.current.weather_code,
-        });
-        setWeatherLocationName(
-          savedLabel.trim().length > 0 ? savedLabel.trim() : null,
-        );
-      } else {
-        setWeather(null);
+        setWeather(weatherCache.weather);
+        setWeatherLocationName(weatherCache.locationName);
+        setWeatherTempUnit(weatherCache.tempUnit);
+        setWeatherLoading(false);
+        return;
       }
-    } catch {
-      setWeather(null);
-    } finally {
-      setWeatherLoading(false);
-    }
-  }, []);
+      try {
+        setWeatherLoading(true);
+        const [savedLat, savedLon, savedLabel, savedUnit] = await Promise.all([
+          getSetting("weather_latitude"),
+          getSetting("weather_longitude"),
+          getSetting("weather_label"),
+          getSetting("weather_temp_unit"),
+        ]);
+        const unit = savedUnit === "F" ? "F" : "C";
+        setWeatherTempUnit(unit);
+
+        let latitude = Number(savedLat);
+        let longitude = Number(savedLon);
+        const hasSavedCoords =
+          savedLat.trim().length > 0 &&
+          savedLon.trim().length > 0 &&
+          !Number.isNaN(latitude) &&
+          !Number.isNaN(longitude);
+
+        if (!hasSavedCoords) {
+          const locationResponse = await fetch("https://ipapi.co/json/");
+          if (!locationResponse.ok) throw new Error("location lookup failed");
+          const locationJson = (await locationResponse.json()) as {
+            latitude?: number;
+            longitude?: number;
+          };
+          if (locationJson.latitude == null || locationJson.longitude == null) {
+            throw new Error("missing location coordinates");
+          }
+          latitude = locationJson.latitude;
+          longitude = locationJson.longitude;
+        }
+
+        const weatherResponse = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=${unit === "F" ? "fahrenheit" : "celsius"}`,
+        );
+        if (!weatherResponse.ok) throw new Error("weather lookup failed");
+        const weatherJson = (await weatherResponse.json()) as {
+          current?: {
+            temperature_2m?: number;
+            weather_code?: number;
+          };
+        };
+
+        if (
+          weatherJson.current?.temperature_2m != null &&
+          weatherJson.current.weather_code != null
+        ) {
+          const nextWeather = {
+            temperature: Math.round(weatherJson.current.temperature_2m),
+            weatherCode: weatherJson.current.weather_code,
+          };
+          const nextLocationName =
+            savedLabel.trim().length > 0 ? savedLabel.trim() : null;
+          setWeather({
+            temperature: nextWeather.temperature,
+            weatherCode: nextWeather.weatherCode,
+          });
+          setWeatherLocationName(nextLocationName);
+          weatherCache = {
+            weather: nextWeather,
+            locationName: nextLocationName,
+            tempUnit: unit,
+            fetchedAtMs: Date.now(),
+          };
+        } else {
+          setWeather(null);
+          weatherCache = {
+            weather: null,
+            locationName: null,
+            tempUnit: unit,
+            fetchedAtMs: Date.now(),
+          };
+        }
+      } catch {
+        setWeather(null);
+        weatherCache = {
+          weather: null,
+          locationName: null,
+          tempUnit: weatherTempUnit,
+          fetchedAtMs: Date.now(),
+        };
+      } finally {
+        setWeatherLoading(false);
+      }
+    },
+    [weatherTempUnit],
+  );
 
   useEffect(() => {
     refreshHomeData();
@@ -167,8 +216,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshHomeData();
-      fetchWeather();
-    }, [refreshHomeData, fetchWeather]),
+    }, [refreshHomeData]),
   );
 
   useEffect(() => {
@@ -212,8 +260,10 @@ export default function HomeScreen() {
   }, [currentTimeText, clockTickAnim]);
 
   useEffect(() => {
-    fetchWeather();
-    const intervalId = setInterval(fetchWeather, 30 * 60 * 1000);
+    void fetchWeather();
+    const intervalId = setInterval(() => {
+      void fetchWeather();
+    }, WEATHER_REFRESH_INTERVAL_MS);
     return () => {
       clearInterval(intervalId);
     };
