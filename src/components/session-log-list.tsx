@@ -10,9 +10,11 @@ import type { SessionLogEntry } from "@/types";
 
 function LogRow({
   entry,
+  showRoleName,
   onPress,
 }: {
   entry: SessionLogEntry;
+  showRoleName: boolean;
   onPress?: (entry: SessionLogEntry) => void;
 }) {
   const { hex } = useThemeColors();
@@ -20,19 +22,23 @@ function LogRow({
   const timeRange = `${formatTime(entry.startAt)} - ${formatTime(entry.endAt)}`;
   const rowContent = (
     <View style={styles.row}>
-      <RoleIcon
-        icon={entry.roleIcon}
-        color={entry.roleColor}
-        size={14}
-        bgSize={34}
-      />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={{ fontSize: 15, fontWeight: "600", color: hex.text }}
-          numberOfLines={1}
-        >
-          {entry.roleName}
-        </Text>
+        {showRoleName ? (
+          <View style={styles.roleLine}>
+            <RoleIcon
+              icon={entry.roleIcon}
+              color={entry.roleColor}
+              size={12}
+              bgSize={24}
+            />
+            <Text
+              style={{ fontSize: 14, fontWeight: "600", color: hex.text }}
+              numberOfLines={1}
+            >
+              {entry.roleName}
+            </Text>
+          </View>
+        ) : null}
         <Text
           style={{ fontSize: 13, color: hex.textSecondary, marginTop: 2 }}
           numberOfLines={1}
@@ -49,14 +55,20 @@ function LogRow({
         ) : null}
       </View>
       {onPress ? (
-        <Ionicons name="create-outline" size={17} color={hex.textTertiary} />
+        <Ionicons name="chevron-forward" size={16} color={hex.textTertiary} />
       ) : null}
     </View>
   );
 
   if (!onPress) return rowContent;
   return (
-    <TouchableOpacity onPress={() => onPress(entry)} activeOpacity={0.75}>
+    <TouchableOpacity
+      onPress={() => onPress(entry)}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit log from ${timeRange}`}
+      accessibilityHint="Opens this log entry in the editor."
+    >
       {rowContent}
     </TouchableOpacity>
   );
@@ -64,9 +76,11 @@ function LogRow({
 
 export function SessionLogList({
   groups,
+  showRoleName,
   onPressEntry,
 }: {
   groups: SessionLogGroup[];
+  showRoleName: boolean;
   onPressEntry?: (entry: SessionLogEntry) => void;
 }) {
   const { hex } = useThemeColors();
@@ -75,9 +89,28 @@ export function SessionLogList({
     <View style={{ gap: 14 }}>
       {groups.map((group) => (
         <View key={group.dayKey}>
-          <Text style={[styles.dayLabel, { color: hex.textTertiary }]}>
-            {group.label}
-          </Text>
+          <View style={styles.dayHeader}>
+            <Text style={[styles.dayLabel, { color: hex.textTertiary }]}>
+              {group.label}
+            </Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: hex.textSecondary,
+                  fontWeight: "600",
+                }}
+              >
+                {formatDurationShort(group.totalDurationMs)}
+              </Text>
+              <Text
+                style={{ fontSize: 11, color: hex.textTertiary, marginTop: 1 }}
+              >
+                {group.sessionCount}{" "}
+                {group.sessionCount === 1 ? "session" : "sessions"}
+              </Text>
+            </View>
+          </View>
           <View
             style={{
               backgroundColor: hex.surface,
@@ -98,7 +131,11 @@ export function SessionLogList({
                   borderBottomColor: hex.border,
                 }}
               >
-                <LogRow entry={entry} onPress={onPressEntry} />
+                <LogRow
+                  entry={entry}
+                  showRoleName={showRoleName}
+                  onPress={onPressEntry}
+                />
               </View>
             ))}
           </View>
@@ -114,14 +151,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+    paddingHorizontal: 2,
+  },
+  dayHeader: {
     marginBottom: 6,
     paddingHorizontal: 2,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  roleLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
 });

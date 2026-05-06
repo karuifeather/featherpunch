@@ -1,14 +1,16 @@
 import {
   buildCompletedLogsQueryOptions,
   buildLogsQueryBounds,
-  buildSelectedRoleSummaryQueryOptions,
   clampDayToMonth,
   deriveLogsEmptyState,
+  formatSelectedRangeLabel,
   getDaysInMonth,
   getCustomRangeDisplayLabel,
   getLogsRangeSummaryText,
   groupSessionLogsByLocalDay,
   isValidCustomDateRange,
+  shouldShowRoleNameInLogRows,
+  summarizeVisibleLogs,
 } from "@/utils/sessionLogs";
 import {
   getRollingRange,
@@ -55,6 +57,8 @@ describe("groupSessionLogsByLocalDay", () => {
     expect(grouped).toHaveLength(2);
     expect(grouped[0].entries.map((entry) => entry.id)).toEqual(["b", "c"]);
     expect(grouped[1].entries.map((entry) => entry.id)).toEqual(["a"]);
+    expect(grouped[0].sessionCount).toBe(2);
+    expect(grouped[0].totalDurationMs).toBe(2 * 60 * 60 * 1000);
   });
 
   it("keeps a cross-midnight session on its local start day", () => {
@@ -80,8 +84,9 @@ describe("deriveLogsEmptyState", () => {
         selectedRangeLabel: "Last 30 days",
       }),
     ).toEqual({
-      title: "No completed logs yet",
-      body: "Punch into a role and clock out to create your first log.",
+      title: "No completed shifts yet",
+      body: "Clock in and punch out to create your first log.",
+      showClearFiltersAction: true,
     });
   });
 
@@ -94,8 +99,9 @@ describe("deriveLogsEmptyState", () => {
         selectedRangeLabel: "Last 7 days",
       }),
     ).toEqual({
-      title: "No logs in the last 7 days",
-      body: "Try Last 30 days, Custom, or All.",
+      title: "No logs for this range",
+      body: "Try a wider range or choose another role.",
+      showClearFiltersAction: true,
     });
   });
 
@@ -109,8 +115,9 @@ describe("deriveLogsEmptyState", () => {
         selectedRoleName: "Sushi Boxes",
       }),
     ).toEqual({
-      title: "No logs for Sushi Boxes in the last 30 days",
-      body: "Try Custom, All, or choose another role.",
+      title: "No logs for Sushi Boxes",
+      body: "Try All roles or choose a different range.",
+      showClearFiltersAction: true,
     });
   });
 
@@ -124,8 +131,9 @@ describe("deriveLogsEmptyState", () => {
         customRangeLabel: "Apr 12 - Apr 23",
       }),
     ).toEqual({
-      title: "No logs from Apr 12 - Apr 23",
-      body: "Try a wider range or All.",
+      title: "No logs for this range",
+      body: "Try a wider range or choose another role.",
+      showClearFiltersAction: true,
     });
   });
 
@@ -140,9 +148,52 @@ describe("deriveLogsEmptyState", () => {
         selectedRoleName: "Sushi Boxes",
       }),
     ).toEqual({
-      title: "No logs for Sushi Boxes from Apr 12 - Apr 23",
-      body: "Try a wider range, All, or choose another role.",
+      title: "No logs for Sushi Boxes",
+      body: "Try All roles or choose a different range.",
+      showClearFiltersAction: true,
     });
+  });
+});
+
+describe("summary and row-presentation helpers", () => {
+  it("computes totals, averages, and earnings from visible entries", () => {
+    const summary = summarizeVisibleLogs([
+      buildEntry({ durationMs: 30 * 60 * 1000, roleHourlyRate: 10 }),
+      buildEntry({ id: "b", durationMs: 90 * 60 * 1000, roleHourlyRate: 10 }),
+    ]);
+    expect(summary.totalDurationMs).toBe(120 * 60 * 1000);
+    expect(summary.sessionCount).toBe(2);
+    expect(summary.averageDurationMs).toBe(60 * 60 * 1000);
+    expect(summary.estimatedEarnings).toBe(20);
+  });
+
+  it("hides earnings when any visible entry has no hourly rate", () => {
+    const summary = summarizeVisibleLogs([
+      buildEntry({ durationMs: 30 * 60 * 1000, roleHourlyRate: 10 }),
+      buildEntry({ id: "b", durationMs: 90 * 60 * 1000, roleHourlyRate: null }),
+    ]);
+    expect(summary.estimatedEarnings).toBeNull();
+  });
+
+  it("shows role name in rows only for all-role mode", () => {
+    expect(shouldShowRoleNameInLogRows("all")).toBe(true);
+    expect(shouldShowRoleNameInLogRows("role-123")).toBe(false);
+  });
+
+  it("formats selected range labels for summary text", () => {
+    expect(formatSelectedRangeLabel({ selectedRange: "all" })).toBe("All");
+    expect(formatSelectedRangeLabel({ selectedRange: "last90Days" })).toBe(
+      "Last 90 days",
+    );
+    expect(
+      formatSelectedRangeLabel({
+        selectedRange: "custom",
+        customRange: {
+          startDate: "2026-04-12T13:00:00.000Z",
+          endDate: "2026-04-23T08:00:00.000Z",
+        },
+      }),
+    ).toContain("Custom");
   });
 });
 
@@ -223,24 +274,6 @@ describe("logs range helpers", () => {
         endDate: "2026-04-12T13:00:00.000Z",
       }),
     ).toBe(false);
-  });
-
-  it("builds selected-role custom summary query options", () => {
-    const options = buildSelectedRoleSummaryQueryOptions({
-      roleId: "role-123",
-      selectedRange: "custom",
-      customRange: {
-        startDate: "2026-03-01T12:00:00.000Z",
-        endDate: "2026-03-31T12:00:00.000Z",
-      },
-    });
-
-    expect(options.roleId).toBe("role-123");
-    expect(options.startIso).toBeDefined();
-    expect(options.endExclusiveIso).toBeDefined();
-    expect(new Date(options.endExclusiveIso!).getTime()).toBeGreaterThan(
-      new Date(options.startIso!).getTime(),
-    );
   });
 
   it("includes roleId for selected-role export query options", () => {

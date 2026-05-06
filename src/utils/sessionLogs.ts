@@ -12,11 +12,21 @@ export type SessionLogGroup = {
   dayKey: string;
   label: string;
   entries: SessionLogEntry[];
+  totalDurationMs: number;
+  sessionCount: number;
 };
 
 export type LogsEmptyState = {
   title: string;
   body: string;
+  showClearFiltersAction?: boolean;
+};
+
+export type LogsSummary = {
+  totalDurationMs: number;
+  sessionCount: number;
+  averageDurationMs: number;
+  estimatedEarnings: number | null;
 };
 
 export type LogsRangeFilter =
@@ -50,7 +60,42 @@ export function groupSessionLogsByLocalDay(
       entries: [...dayEntries].sort(
         (a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime(),
       ),
+      totalDurationMs: dayEntries.reduce(
+        (sum, entry) => sum + entry.durationMs,
+        0,
+      ),
+      sessionCount: dayEntries.length,
     }));
+}
+
+export function summarizeVisibleLogs(entries: SessionLogEntry[]): LogsSummary {
+  const totalDurationMs = entries.reduce(
+    (sum, entry) => sum + entry.durationMs,
+    0,
+  );
+  const sessionCount = entries.length;
+  const averageDurationMs =
+    sessionCount === 0 ? 0 : Math.round(totalDurationMs / sessionCount);
+  const canEstimateAll =
+    sessionCount > 0 && entries.every((entry) => entry.roleHourlyRate != null);
+  const estimatedEarnings = canEstimateAll
+    ? entries.reduce(
+        (sum, entry) =>
+          sum + (entry.durationMs / 3_600_000) * Number(entry.roleHourlyRate),
+        0,
+      )
+    : null;
+
+  return {
+    totalDurationMs,
+    sessionCount,
+    averageDurationMs,
+    estimatedEarnings,
+  };
+}
+
+export function shouldShowRoleNameInLogRows(selectedRoleId: string): boolean {
+  return selectedRoleId === "all";
 }
 
 export function deriveLogsEmptyState(options: {
@@ -65,27 +110,16 @@ export function deriveLogsEmptyState(options: {
     totalCompletedCount,
     filteredCount,
     selectedRange,
-    selectedRangeLabel,
-    customRangeLabel,
     selectedRoleName,
   } = options;
   const isAllRange = selectedRange === "all";
   const isCustom = selectedRange === "custom";
-  const normalizedRangeLabel = selectedRangeLabel.toLowerCase();
-  const customPhrase = customRangeLabel
-    ? `from ${customRangeLabel}`
-    : "in custom range";
-
   if (totalCompletedCount === 0) {
-    return isAllRange
-      ? {
-          title: "No completed logs yet",
-          body: "Your completed shifts will appear here.",
-        }
-      : {
-          title: "No completed logs yet",
-          body: "Punch into a role and clock out to create your first log.",
-        };
+    return {
+      title: "No completed shifts yet",
+      body: "Clock in and punch out to create your first log.",
+      showClearFiltersAction: !isAllRange || selectedRoleName != null,
+    };
   }
 
   if (filteredCount > 0) {
@@ -99,16 +133,19 @@ export function deriveLogsEmptyState(options: {
     return isAllRange
       ? {
           title: `No logs for ${selectedRoleName}`,
-          body: "Try All or choose another role.",
+          body: "Try All roles or choose a different range.",
+          showClearFiltersAction: true,
         }
       : isCustom
         ? {
-            title: `No logs for ${selectedRoleName} ${customPhrase}`,
-            body: "Try a wider range, All, or choose another role.",
+            title: `No logs for ${selectedRoleName}`,
+            body: "Try All roles or choose a different range.",
+            showClearFiltersAction: true,
           }
         : {
-            title: `No logs for ${selectedRoleName} in the ${normalizedRangeLabel}`,
-            body: "Try Custom, All, or choose another role.",
+            title: `No logs for ${selectedRoleName}`,
+            body: "Try All roles or choose a different range.",
+            showClearFiltersAction: true,
           };
   }
 
@@ -121,14 +158,16 @@ export function deriveLogsEmptyState(options: {
 
   if (isCustom) {
     return {
-      title: `No logs ${customPhrase}`,
-      body: "Try a wider range or All.",
+      title: "No logs for this range",
+      body: "Try a wider range or choose another role.",
+      showClearFiltersAction: true,
     };
   }
 
   return {
-    title: `No logs in the ${normalizedRangeLabel}`,
-    body: "Try Last 30 days, Custom, or All.",
+    title: "No logs for this range",
+    body: "Try a wider range or choose another role.",
+    showClearFiltersAction: true,
   };
 }
 
@@ -244,6 +283,17 @@ export function getLogsRangeSummaryText(options: {
 
   const range = getRollingRange(selectedRange);
   return `${range.label} · ${range.displayRange}`;
+}
+
+export function formatSelectedRangeLabel(options: {
+  selectedRange: LogsRangeFilter;
+  customRange?: CustomDateRange | null;
+}): string {
+  if (options.selectedRange === "custom" && options.customRange) {
+    return `Custom (${getCustomRangeDisplayLabel(options.customRange)})`;
+  }
+  if (options.selectedRange === "all") return "All";
+  return getRollingRange(options.selectedRange).label;
 }
 
 export function buildLogsExportSummaryLines(options: {

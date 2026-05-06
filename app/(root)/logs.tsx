@@ -5,13 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useModalStore } from "@/stores/modal-store";
@@ -23,16 +17,17 @@ import {
   buildLogsQueryBounds,
   buildCompletedLogsQueryOptions,
   buildLogsExportSummaryLines,
-  buildSelectedRoleSummaryQueryOptions,
   type CustomDateRange,
   deriveLogsEmptyState,
+  formatSelectedRangeLabel,
   getCustomRangeDisplayLabel,
   getLogsRangeSummaryText,
   groupSessionLogsByLocalDay,
   type LogsRangeFilter,
+  shouldShowRoleNameInLogRows,
+  summarizeVisibleLogs,
 } from "@/utils/sessionLogs";
 import {
-  getCompletedSessionLogSummary,
   getCompletedSessionLogs,
   getCompletedSessionLogsForExport,
   getRolesWithCompletedSessionHistory,
@@ -66,7 +61,7 @@ export default function LogsScreen() {
   const { roleId } = useLocalSearchParams<{ roleId?: string }>();
   const { openSessionEditor, sessionEditorId } = useModalStore();
   const { bg, hex } = useThemeColors();
-  const { top: safeTop } = useEdgeToEdgeInsets();
+  const { top: safeTop, tabBarHeight } = useEdgeToEdgeInsets();
   const prevSessionEditorId = useRef<string | null>(null);
   const [selectedRange, setSelectedRange] =
     useState<LogsRangeFilter>("last30Days");
@@ -85,8 +80,6 @@ export default function LogsScreen() {
   );
   const [entries, setEntries] = useState<SessionLogEntry[]>([]);
   const [totalCompletedCount, setTotalCompletedCount] = useState(0);
-  const [selectedRoleSummary, setSelectedRoleSummary] =
-    useState<CompletedSessionLogSummary | null>(null);
   const [roleOptions, setRoleOptions] = useState<
     Array<{ id: string; label: string }>
   >([{ id: ALL_ROLES_ID, label: "All roles" }]);
@@ -115,26 +108,16 @@ export default function LogsScreen() {
       customRange,
     });
 
-    const [nextEntries, nextRoleOptions, hasAnyCompleted, nextSummary] =
-      await Promise.all([
-        getCompletedSessionLogs({
-          roleId: roleFilter,
-          startIso: bounds.startIso,
-          endExclusiveIso: bounds.endExclusiveIso,
-          limit: DEFAULT_LIMIT,
-        }),
-        getRolesWithCompletedSessionHistory(),
-        getCompletedSessionLogs({ limit: 1 }),
-        roleFilter
-          ? getCompletedSessionLogSummary(
-              buildSelectedRoleSummaryQueryOptions({
-                roleId: roleFilter,
-                selectedRange,
-                customRange,
-              }),
-            )
-          : Promise.resolve(null),
-      ]);
+    const [nextEntries, nextRoleOptions, hasAnyCompleted] = await Promise.all([
+      getCompletedSessionLogs({
+        roleId: roleFilter,
+        startIso: bounds.startIso,
+        endExclusiveIso: bounds.endExclusiveIso,
+        limit: DEFAULT_LIMIT,
+      }),
+      getRolesWithCompletedSessionHistory(),
+      getCompletedSessionLogs({ limit: 1 }),
+    ]);
 
     const filterOptions = [
       { id: ALL_ROLES_ID, label: "All roles" },
@@ -149,7 +132,6 @@ export default function LogsScreen() {
 
     setEntries(nextEntries);
     setTotalCompletedCount(hasAnyCompleted.length);
-    setSelectedRoleSummary(nextSummary);
   }, [customRange, selectedRange, selectedRoleId]);
 
   useFocusEffect(
@@ -199,12 +181,18 @@ export default function LogsScreen() {
         ? undefined
         : (selectedRoleName ?? undefined),
   });
-  const showSummaryCard =
-    selectedRoleId !== ALL_ROLES_ID &&
-    selectedRoleSummary != null &&
-    selectedRoleSummary.completedSessionCount > 0;
-  const summaryRangeLabel =
-    selectedRange === "custom" ? customRangeLabel : selectedRangeLabel;
+  const shouldShowRoleName = shouldShowRoleNameInLogRows(selectedRoleId);
+  const summary = useMemo(() => summarizeVisibleLogs(entries), [entries]);
+  const exactDateRange = useMemo(() => {
+    const parts = rangeSummaryText.split("·");
+    return parts.length > 1 ? parts[1].trim() : undefined;
+  }, [rangeSummaryText]);
+  const summaryTitle = `${selectedRoleName ?? "All roles"} · ${formatSelectedRangeLabel(
+    {
+      selectedRange,
+      customRange,
+    },
+  )}`;
   const exportQueryOptions = useMemo(() => {
     return buildCompletedLogsQueryOptions({
       selectedRange,
@@ -269,15 +257,12 @@ export default function LogsScreen() {
 
     setPendingExportEntries(matchingEntries);
     setExportConfirmVisible(true);
-  }, [
-    exportQueryOptions,
-    getExportRangeSummary,
-    isExporting,
-    performExport,
-    selectedRoleId,
-    selectedRoleName,
-    selectedRoleSummary,
-  ]);
+  }, [exportQueryOptions, isExporting, selectedRoleId, selectedRoleName]);
+
+  const handleClearFilters = useCallback(() => {
+    setSelectedRoleId(ALL_ROLES_ID);
+    setSelectedRange("last30Days");
+  }, []);
 
   const handleSelectRange = (id: string) => {
     if (id === "custom") {
@@ -293,7 +278,7 @@ export default function LogsScreen() {
         className={bg}
         contentContainerStyle={{
           paddingTop: safeTop + 12,
-          paddingBottom: 32,
+          paddingBottom: tabBarHeight + 20,
           paddingHorizontal: 20,
         }}
       >
@@ -343,48 +328,16 @@ export default function LogsScreen() {
             onSelectRange={handleSelectRange}
             onSelectRole={setSelectedRoleId}
             rangeSummaryText={rangeSummaryText}
+            selectedRangeLabel={selectedRangeLabel}
+            selectedRoleLabel={selectedRoleName ?? "All roles"}
+            onPressExport={() => {
+              void handleExportLogs();
+            }}
+            canExport={canExport}
+            isExporting={isExporting}
           />
-          <View style={{ marginTop: 10 }}>
-            <TouchableOpacity
-              onPress={() => {
-                void handleExportLogs();
-              }}
-              disabled={!canExport}
-              style={{
-                borderRadius: RADIUS.button,
-                borderWidth: 1,
-                borderColor: canExport ? ACCENT.primary : hex.border,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: canExport ? 1 : 0.6,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Export current logs"
-            >
-              {isExporting ? (
-                <ActivityIndicator size="small" color={ACCENT.primary} />
-              ) : (
-                <Text style={{ ...TYPOGRAPHY.body, color: ACCENT.primary }}>
-                  Export current logs
-                </Text>
-              )}
-            </TouchableOpacity>
-            {!canExport ? (
-              <Text
-                style={{
-                  ...TYPOGRAPHY.metadata,
-                  color: hex.textTertiary,
-                  marginTop: 6,
-                }}
-              >
-                No logs to export for this range.
-              </Text>
-            ) : null}
-          </View>
         </View>
-        {showSummaryCard ? (
+        {entries.length > 0 ? (
           <View
             style={{
               marginBottom: 12,
@@ -396,7 +349,7 @@ export default function LogsScreen() {
             }}
           >
             <Text style={{ ...TYPOGRAPHY.metadata, color: hex.textTertiary }}>
-              {selectedRoleName} total
+              {summaryTitle}
             </Text>
             <Text
               style={{
@@ -405,7 +358,10 @@ export default function LogsScreen() {
                 marginTop: 4,
               }}
             >
-              {formatDurationShort(selectedRoleSummary.totalDurationMs)}
+              {formatDurationShort(summary.totalDurationMs)}
+              {summary.estimatedEarnings != null
+                ? ` · $${summary.estimatedEarnings.toFixed(2)} est.`
+                : ""}
             </Text>
             <Text
               style={{
@@ -414,27 +370,10 @@ export default function LogsScreen() {
                 marginTop: 4,
               }}
             >
-              {selectedRoleSummary.completedSessionCount} sessions ·{" "}
-              {summaryRangeLabel}
+              {summary.sessionCount} sessions · Avg{" "}
+              {formatDurationShort(summary.averageDurationMs)} ·{" "}
+              {exactDateRange ?? selectedRangeLabel}
             </Text>
-            {selectedRoleSummary.estimatedEarnings != null ? (
-              <View style={{ marginTop: 10 }}>
-                <Text
-                  style={{ ...TYPOGRAPHY.metadata, color: hex.textTertiary }}
-                >
-                  Estimated earnings
-                </Text>
-                <Text
-                  style={{
-                    ...TYPOGRAPHY.body,
-                    color: hex.textSecondary,
-                    marginTop: 2,
-                  }}
-                >
-                  ${selectedRoleSummary.estimatedEarnings.toFixed(2)}
-                </Text>
-              </View>
-            ) : null}
           </View>
         ) : null}
 
@@ -461,10 +400,23 @@ export default function LogsScreen() {
             >
               {emptyState.body}
             </Text>
+            {emptyState.showClearFiltersAction ? (
+              <TouchableOpacity
+                onPress={handleClearFilters}
+                style={{ marginTop: 12, alignSelf: "flex-start" }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear filters"
+              >
+                <Text style={{ ...TYPOGRAPHY.metadata, color: ACCENT.primary }}>
+                  Clear filters
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <SessionLogList
             groups={grouped}
+            showRoleName={shouldShowRoleName}
             onPressEntry={(entry) => openSessionEditor(entry.id)}
           />
         )}
@@ -488,7 +440,15 @@ export default function LogsScreen() {
           selectedRoleName:
             selectedRoleId === ALL_ROLES_ID ? undefined : selectedRoleName,
           selectedRoleSummary:
-            selectedRoleId === ALL_ROLES_ID ? null : selectedRoleSummary,
+            selectedRoleId === ALL_ROLES_ID
+              ? null
+              : ({
+                  roleId: selectedRoleId,
+                  completedSessionCount: summary.sessionCount,
+                  totalDurationMs: summary.totalDurationMs,
+                  hourlyRate: null,
+                  estimatedEarnings: summary.estimatedEarnings,
+                } satisfies CompletedSessionLogSummary),
         }).join("\n")}
         confirmLabel="Export CSV"
         onCancel={() => {
