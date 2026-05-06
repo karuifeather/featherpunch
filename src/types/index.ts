@@ -40,6 +40,7 @@ export interface SessionLogEntry {
   roleName: string;
   roleColor: string;
   roleIcon: string;
+  roleHourlyRate?: number | null;
   startAt: string;
   endAt: string;
   durationMs: number;

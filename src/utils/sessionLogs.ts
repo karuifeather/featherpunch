@@ -5,6 +5,8 @@ import {
 } from "@/utils/dateRanges";
 import { startOfLocalDay, startOfNextLocalDay } from "@/utils/localDate";
 import type { SessionLogEntry } from "@/types";
+import type { CompletedSessionLogSummary } from "@/types";
+import { formatDurationShort } from "@/utils/formatTime";
 
 export type SessionLogGroup = {
   dayKey: string;
@@ -174,6 +176,26 @@ export function buildSelectedRoleSummaryQueryOptions(options: {
   };
 }
 
+export function buildCompletedLogsQueryOptions(options: {
+  selectedRange: LogsRangeFilter;
+  customRange?: CustomDateRange | null;
+  roleId?: string;
+}): {
+  roleId?: string;
+  startIso?: string;
+  endExclusiveIso?: string;
+} {
+  const bounds = buildLogsQueryBounds({
+    selectedRange: options.selectedRange,
+    customRange: options.customRange,
+  });
+  return {
+    roleId: options.roleId,
+    startIso: bounds.startIso,
+    endExclusiveIso: bounds.endExclusiveIso,
+  };
+}
+
 function formatMonthDay(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
@@ -222,4 +244,31 @@ export function getLogsRangeSummaryText(options: {
 
   const range = getRollingRange(selectedRange);
   return `${range.label} · ${range.displayRange}`;
+}
+
+export function buildLogsExportSummaryLines(options: {
+  count: number;
+  rangeSummary: string;
+  selectedRoleName?: string;
+  selectedRoleSummary?: CompletedSessionLogSummary | null;
+}): string[] {
+  const lines = [`Exporting ${options.count} completed logs`];
+  if (!options.selectedRoleName) {
+    lines.push(options.rangeSummary);
+    lines.push("All roles");
+    return lines;
+  }
+
+  lines.push(`${options.selectedRoleName} · ${options.rangeSummary}`);
+  if (options.selectedRoleSummary) {
+    lines.push(
+      `Total: ${formatDurationShort(options.selectedRoleSummary.totalDurationMs)}`,
+    );
+    if (options.selectedRoleSummary.estimatedEarnings != null) {
+      lines.push(
+        `Estimated earnings: $${options.selectedRoleSummary.estimatedEarnings.toFixed(2)}`,
+      );
+    }
+  }
+  return lines;
 }

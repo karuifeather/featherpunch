@@ -1,4 +1,5 @@
 import {
+  buildCompletedLogsQueryOptions,
   buildLogsQueryBounds,
   buildSelectedRoleSummaryQueryOptions,
   clampDayToMonth,
@@ -9,6 +10,10 @@ import {
   groupSessionLogsByLocalDay,
   isValidCustomDateRange,
 } from "@/utils/sessionLogs";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+} from "@/utils/dateRanges";
 import type { SessionLogEntry } from "@/types";
 
 function buildEntry(overrides: Partial<SessionLogEntry>): SessionLogEntry {
@@ -142,6 +147,24 @@ describe("deriveLogsEmptyState", () => {
 });
 
 describe("logs range helpers", () => {
+  it("builds last 7 days bounds using rolling helper", () => {
+    const range = getRollingRange("last7Days");
+    const expected = getRollingRangeQueryBounds(range);
+    const bounds = buildLogsQueryBounds({
+      selectedRange: "last7Days",
+    });
+    expect(bounds).toEqual(expected);
+  });
+
+  it("builds last 30 days bounds using rolling helper", () => {
+    const range = getRollingRange("last30Days");
+    const expected = getRollingRangeQueryBounds(range);
+    const bounds = buildLogsQueryBounds({
+      selectedRange: "last30Days",
+    });
+    expect(bounds).toEqual(expected);
+  });
+
   it("builds local-day inclusive bounds for custom range", () => {
     const bounds = buildLogsQueryBounds({
       selectedRange: "custom",
@@ -158,6 +181,14 @@ describe("logs range helpers", () => {
     expect(endExclusive.getHours()).toBe(0);
     expect(endExclusive.getMinutes()).toBe(0);
     expect(endExclusive.getTime()).toBeGreaterThan(start.getTime());
+  });
+
+  it("returns no bounds for all range", () => {
+    expect(
+      buildLogsQueryBounds({
+        selectedRange: "all",
+      }),
+    ).toEqual({});
   });
 
   it("formats custom range and all-range summary text", () => {
@@ -210,6 +241,25 @@ describe("logs range helpers", () => {
     expect(new Date(options.endExclusiveIso!).getTime()).toBeGreaterThan(
       new Date(options.startIso!).getTime(),
     );
+  });
+
+  it("includes roleId for selected-role export query options", () => {
+    const options = buildCompletedLogsQueryOptions({
+      selectedRange: "last30Days",
+      roleId: "role-7",
+    });
+    expect(options.roleId).toBe("role-7");
+    expect(options.startIso).toBeDefined();
+    expect(options.endExclusiveIso).toBeDefined();
+  });
+
+  it("omits roleId for all-roles export query options", () => {
+    const options = buildCompletedLogsQueryOptions({
+      selectedRange: "all",
+    });
+    expect(options.roleId).toBeUndefined();
+    expect(options.startIso).toBeUndefined();
+    expect(options.endExclusiveIso).toBeUndefined();
   });
 
   it("returns February day count based on selected year", () => {

@@ -197,6 +197,33 @@ export async function getCompletedSessionLogs(
     offset?: number;
   } = {},
 ): Promise<SessionLogEntry[]> {
+  const limit = options.limit ?? 100;
+  return queryCompletedSessionLogs({
+    roleId: options.roleId,
+    startIso: options.startIso,
+    endExclusiveIso: options.endExclusiveIso,
+    limit,
+    offset: options.offset ?? 0,
+  });
+}
+
+export async function getCompletedSessionLogsForExport(
+  options: {
+    roleId?: string;
+    startIso?: string;
+    endExclusiveIso?: string;
+  } = {},
+): Promise<SessionLogEntry[]> {
+  return queryCompletedSessionLogs(options);
+}
+
+async function queryCompletedSessionLogs(options: {
+  roleId?: string;
+  startIso?: string;
+  endExclusiveIso?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<SessionLogEntry[]> {
   const db = await getDb();
   const where: string[] = ["s.end_at IS NOT NULL"];
   const params: SQLite.SQLiteBindValue[] = [];
@@ -214,17 +241,22 @@ export async function getCompletedSessionLogs(
     params.push(options.endExclusiveIso);
   }
 
-  const limit = options.limit ?? 100;
-  const offset = options.offset ?? 0;
-  params.push(limit, offset);
+  const queryParts = [
+    `${JOIN_QUERY}`,
+    `WHERE ${where.join(" AND ")}`,
+    "ORDER BY s.start_at DESC",
+  ];
 
-  const rows = await db.getAllAsync(
-    `${JOIN_QUERY}
-     WHERE ${where.join(" AND ")}
-     ORDER BY s.start_at DESC
-     LIMIT ? OFFSET ?`,
-    params,
-  );
+  if (typeof options.limit === "number") {
+    queryParts.push("LIMIT ?");
+    params.push(options.limit);
+    if (typeof options.offset === "number") {
+      queryParts.push("OFFSET ?");
+      params.push(options.offset);
+    }
+  }
+
+  const rows = await db.getAllAsync(queryParts.join("\n"), params);
 
   return rows.map((row) => {
     const mapped = rowToSessionWithRole(row as Record<string, unknown>);
@@ -234,6 +266,7 @@ export async function getCompletedSessionLogs(
       roleName: mapped.roleName,
       roleColor: mapped.roleColor,
       roleIcon: mapped.roleIcon,
+      roleHourlyRate: mapped.roleHourlyRate,
       startAt: mapped.startAt,
       endAt: mapped.endAt ?? mapped.startAt,
       durationMs:
