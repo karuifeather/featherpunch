@@ -5,8 +5,9 @@ import { setSetting } from "@/db/settings";
 
 interface SessionStore {
   active: ActiveSession | null;
-  isLoading: boolean;
+  isHydratingActiveSession: boolean;
 
+  hydrateActiveSessionFromDatabase: () => Promise<void>;
   loadActiveSession: () => Promise<void>;
   clockIn: (roleId: string) => Promise<void>;
   clockOut: () => Promise<void>;
@@ -30,15 +31,19 @@ function sessionWithRoleToActive(s: SessionWithRole): ActiveSession {
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   active: null,
-  isLoading: true,
+  isHydratingActiveSession: true,
 
-  loadActiveSession: async () => {
-    set({ isLoading: true });
+  hydrateActiveSessionFromDatabase: async () => {
+    set({ isHydratingActiveSession: true });
     const session = await sessionsDb.getActiveSession();
     set({
       active: session ? sessionWithRoleToActive(session) : null,
-      isLoading: false,
+      isHydratingActiveSession: false,
     });
+  },
+  // Backward-compatible alias for existing callers.
+  loadActiveSession: async () => {
+    await get().hydrateActiveSessionFromDatabase();
   },
 
   clockIn: async (roleId: string) => {
@@ -84,5 +89,5 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     });
   },
 
-  clear: () => set({ active: null, isLoading: true }),
+  clear: () => set({ active: null, isHydratingActiveSession: false }),
 }));

@@ -49,12 +49,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const { hex, bg } = useThemeColors();
   const { tabBarHeight, top } = useEdgeToEdgeInsets();
-  const { roles } = useRoles();
+  const { roles, loading: rolesLoading } = useRoles();
   const { sessions: todaySessions, refresh: refreshSessions } =
     useTodaySessions();
   const {
     active,
-    loadActiveSession,
+    hydrateActiveSessionFromDatabase,
+    isHydratingActiveSession,
     clockIn,
     clockOut,
     switchRole,
@@ -102,9 +103,9 @@ export default function HomeScreen() {
 
   const refreshHomeData = useCallback(() => {
     refreshSessions();
-    loadActiveSession();
+    hydrateActiveSessionFromDatabase();
     loadLastEngagedRole();
-  }, [refreshSessions, loadActiveSession, loadLastEngagedRole]);
+  }, [refreshSessions, hydrateActiveSessionFromDatabase, loadLastEngagedRole]);
 
   const fetchWeather = useCallback(
     async (force = false) => {
@@ -238,10 +239,15 @@ export default function HomeScreen() {
 
   // If active session references a deleted role, clear it to avoid FK errors and ghost UI
   useEffect(() => {
-    if (active && !activeRoles.some((r) => r.id === active.roleId)) {
+    if (
+      !rolesLoading &&
+      activeRoles.length > 0 &&
+      active &&
+      !activeRoles.some((r) => r.id === active.roleId)
+    ) {
       clearSessionStore();
     }
-  }, [active, activeRoles, clearSessionStore]);
+  }, [active, activeRoles, clearSessionStore, rolesLoading]);
 
   useEffect(() => {
     const intervalId = setInterval(() => setNow(new Date()), 1000);
@@ -400,6 +406,7 @@ export default function HomeScreen() {
   };
 
   const showRecentRoles = recentRoleIds.length >= 2;
+  const isInitialHomeHydrationPending = isHydratingActiveSession && !active;
   const activeNowLabel =
     todaySummary.activePunchIns > 0
       ? todaySummary.activeMs < 60_000
@@ -493,7 +500,25 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {active ? (
+        {isInitialHomeHydrationPending ? (
+          <View
+            style={[
+              styles.panel,
+              {
+                backgroundColor: hex.elevated,
+                borderColor: hex.border,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: hex.text }]}>
+              Restoring active session
+            </Text>
+            <Text style={[styles.helperText, { color: hex.textSecondary }]}>
+              Checking for an unfinished role session...
+            </Text>
+            <ActivityIndicator size="small" color={hex.textSecondary} />
+          </View>
+        ) : active ? (
           <ActiveRoleCard
             roleName={active.roleName}
             roleIcon={active.roleIcon}
