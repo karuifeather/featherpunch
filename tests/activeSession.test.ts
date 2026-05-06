@@ -1,5 +1,7 @@
 import {
+  deriveHomeSummaryRows,
   deriveHomeTodaySummary,
+  deriveInactiveHomeCardCopy,
   getActiveElapsedMs,
   resolveLastEngagedRole,
 } from "@/utils/activeSession";
@@ -138,5 +140,96 @@ describe("activeSession helpers", () => {
     expect(
       resolveLastEngagedRole(null, [buildRole({ id: "role-1" })]),
     ).toBeNull();
+  });
+
+  it("builds inactive card copy with last role and completed time", () => {
+    const copy = deriveInactiveHomeCardCopy({
+      lastEngagedRole: buildRole({ id: "role-1", name: "Sleeping" }),
+      selectedRole: null,
+      summary: {
+        completedMs: 2 * 60 * 60 * 1000 + 47 * 60 * 1000,
+        activeMs: 0,
+        completedPunchIns: 3,
+        activePunchIns: 0,
+        mostTimeToday: "Sleeping",
+      },
+    });
+    expect(copy.roleName).toBe("Sleeping");
+    expect(copy.ctaLabel).toBe("Clock in to Sleeping");
+    expect(copy.contextLine).toContain("logged today");
+    expect(copy.contextLine).toContain("Last active today");
+  });
+
+  it("builds inactive card copy with last role and no completed time", () => {
+    const copy = deriveInactiveHomeCardCopy({
+      lastEngagedRole: buildRole({ id: "role-1", name: "Working" }),
+      selectedRole: null,
+      summary: {
+        completedMs: 0,
+        activeMs: 0,
+        completedPunchIns: 0,
+        activePunchIns: 0,
+        mostTimeToday: null,
+      },
+    });
+    expect(copy.roleName).toBe("Working");
+    expect(copy.contextLine).toBe("Last active recently");
+    expect(copy.showChooseAnother).toBe(true);
+  });
+
+  it("builds inactive card copy with no available role", () => {
+    const copy = deriveInactiveHomeCardCopy({
+      lastEngagedRole: null,
+      selectedRole: null,
+      summary: {
+        completedMs: 0,
+        activeMs: 0,
+        completedPunchIns: 0,
+        activePunchIns: 0,
+        mostTimeToday: null,
+      },
+    });
+    expect(copy.roleName).toBe("Choose a role");
+    expect(copy.ctaLabel).toBe("Choose role");
+    expect(copy.showChooseAnother).toBe(false);
+  });
+
+  it("orders today summary rows for active state", () => {
+    const rows = deriveHomeSummaryRows({
+      summary: {
+        completedMs: 45 * 60 * 1000,
+        activeMs: 10 * 60 * 1000,
+        completedPunchIns: 2,
+        activePunchIns: 1,
+        mostTimeToday: "Studying",
+      },
+      hasActiveSession: true,
+      activeNowLabel: "10m",
+    });
+    expect(rows.map((row) => row.label)).toEqual([
+      "Active now",
+      "Completed time",
+      "Punch-ins",
+      "Most time today",
+    ]);
+  });
+
+  it("orders today summary rows for inactive state", () => {
+    const rows = deriveHomeSummaryRows({
+      summary: {
+        completedMs: 45 * 60 * 1000,
+        activeMs: 0,
+        completedPunchIns: 2,
+        activePunchIns: 0,
+        mostTimeToday: "Studying",
+      },
+      hasActiveSession: false,
+      activeNowLabel: "No active session",
+    });
+    expect(rows.map((row) => row.label)).toEqual([
+      "Completed time",
+      "Punch-ins",
+      "Most time today",
+    ]);
   });
 });

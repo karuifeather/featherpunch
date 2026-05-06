@@ -98,7 +98,7 @@ export function ActiveRoleCard({
 const styles = StyleSheet.create({
   panel: {
     borderRadius: RADIUS.card,
-    marginBottom: 10,
+    marginBottom: 12,
     overflow: "hidden",
     borderWidth: 1,
   },

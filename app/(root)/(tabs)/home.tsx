@@ -27,7 +27,9 @@ import { RADIUS, TYPOGRAPHY, SPACING } from "@/constants/designTokens";
 import { ACCENT } from "@/constants/colors";
 import { formatDurationShort } from "@/utils/formatTime";
 import {
+  deriveHomeSummaryRows,
   deriveHomeTodaySummary,
+  deriveInactiveHomeCardCopy,
   resolveLastEngagedRole,
 } from "@/utils/activeSession";
 import { getSetting, setSetting } from "@/db/settings";
@@ -413,6 +415,26 @@ export default function HomeScreen() {
         ? "Less than 1m"
         : formatDurationShort(todaySummary.activeMs)
       : "No active session";
+  const inactiveTargetRole = lastEngagedRole ?? selectedRole;
+  const inactiveCardCopy = useMemo(
+    () =>
+      deriveInactiveHomeCardCopy({
+        lastEngagedRole,
+        selectedRole,
+        summary: todaySummary,
+      }),
+    [lastEngagedRole, selectedRole, todaySummary],
+  );
+  const todaySummaryRows = useMemo(
+    () =>
+      deriveHomeSummaryRows({
+        summary: todaySummary,
+        hasActiveSession: active != null,
+        activeNowLabel,
+      }),
+    [todaySummary, active, activeNowLabel],
+  );
+  const homeBottomPadding = tabBarHeight + SPACING.md;
 
   return (
     <EdgeToEdgeScreen style={{ flex: 1 }}>
@@ -422,7 +444,7 @@ export default function HomeScreen() {
           styles.scrollContent,
           {
             paddingTop: top + SPACING.sm,
-            paddingBottom: tabBarHeight + 24,
+            paddingBottom: homeBottomPadding,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -504,6 +526,7 @@ export default function HomeScreen() {
           <View
             style={[
               styles.panel,
+              styles.sectionBlock,
               {
                 backgroundColor: hex.elevated,
                 borderColor: hex.border,
@@ -532,21 +555,38 @@ export default function HomeScreen() {
           <View
             style={[
               styles.panel,
+              styles.sectionBlock,
               {
                 backgroundColor: hex.elevated,
                 borderColor: hex.border,
               },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: hex.text }]}>
-              Ready to punch in
+            <Text style={[styles.statusEyebrow, { color: hex.textSecondary }]}>
+              {inactiveCardCopy.kicker}
             </Text>
+            <View style={styles.readyHeader}>
+              {inactiveTargetRole ? (
+                <RoleIcon
+                  icon={inactiveTargetRole.icon}
+                  color={inactiveTargetRole.color}
+                  size={14}
+                  bgSize={34}
+                />
+              ) : null}
+              <View style={styles.readyTitleBlock}>
+                <Text style={[styles.readyRoleName, { color: hex.text }]}>
+                  {inactiveCardCopy.roleName}
+                </Text>
+                <Text
+                  style={[styles.readyStatusLine, { color: hex.textSecondary }]}
+                >
+                  {inactiveCardCopy.statusLine}
+                </Text>
+              </View>
+            </View>
             <Text style={[styles.helperText, { color: hex.textSecondary }]}>
-              {lastEngagedRole
-                ? `Last role: ${lastEngagedRole.name}`
-                : selectedRole
-                  ? `Selected role: ${selectedRole.name}`
-                  : "Choose the role you're stepping into."}
+              {inactiveCardCopy.contextLine}
             </Text>
             <TouchableOpacity
               onPress={() =>
@@ -565,31 +605,32 @@ export default function HomeScreen() {
               activeOpacity={0.88}
             >
               <Text style={styles.primaryButtonLabel}>
-                {lastEngagedRole
-                  ? `Clock in to ${lastEngagedRole.name}`
-                  : selectedRole
-                    ? `Clock in to ${selectedRole.name}`
-                    : "Punch in"}
+                {inactiveCardCopy.ctaLabel}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setShowRolePicker(true)}
-              style={styles.secondaryAction}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[styles.secondaryActionLabel, { color: ACCENT.primary }]}
+            {inactiveCardCopy.showChooseAnother ? (
+              <TouchableOpacity
+                onPress={() => setShowRolePicker(true)}
+                style={styles.secondaryAction}
+                activeOpacity={0.7}
               >
-                Choose another role
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.secondaryActionLabel,
+                    { color: ACCENT.primary },
+                  ]}
+                >
+                  Choose another role
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
         {showRecentRoles && (
           <View style={styles.recentSection}>
             <Text style={[styles.sectionLabel, { color: hex.textTertiary }]}>
-              Recent roles
+              Quick start
             </Text>
             <ScrollView
               horizontal
@@ -650,46 +691,41 @@ export default function HomeScreen() {
         <View
           style={[
             styles.summaryPanel,
+            styles.sectionBlock,
             { backgroundColor: hex.elevated, borderColor: hex.border },
           ]}
         >
           <Text style={[styles.summaryTitle, { color: hex.textSecondary }]}>
             Today at a glance
           </Text>
-          <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>
-              Completed time
-            </Text>
-            <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {formatDurationShort(todaySummary.completedMs)}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>
-              Active now
-            </Text>
-            <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {activeNowLabel}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>
-              Punch-ins
-            </Text>
-            <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {todaySummary.activePunchIns > 0
-                ? `${todaySummary.completedPunchIns} completed • ${todaySummary.activePunchIns} active`
-                : todaySummary.completedPunchIns}
-            </Text>
-          </View>
-          <View style={styles.summaryRowLast}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>
-              Most time today
-            </Text>
-            <Text style={[styles.summaryValueStrong, { color: hex.text }]}>
-              {todaySummary.mostTimeToday || "—"}
-            </Text>
-          </View>
+          {todaySummaryRows.map((row, index) => {
+            const isLast = index === todaySummaryRows.length - 1;
+            return (
+              <View
+                key={row.label}
+                style={[
+                  isLast ? styles.summaryRowLast : styles.summaryRow,
+                  !isLast && { borderBottomColor: hex.border },
+                ]}
+              >
+                <Text
+                  style={[styles.summaryLabel, { color: hex.textTertiary }]}
+                >
+                  {row.label}
+                </Text>
+                <Text
+                  style={[
+                    row.emphasize
+                      ? styles.summaryValueStrong
+                      : styles.summaryValue,
+                    { color: hex.text },
+                  ]}
+                >
+                  {row.value}
+                </Text>
+              </View>
+            );
+          })}
         </View>
         <TouchableOpacity
           onPress={() => router.push("/(root)/logs")}
@@ -771,8 +807,10 @@ const styles = StyleSheet.create({
   panel: {
     borderRadius: RADIUS.card,
     padding: 16,
-    marginBottom: 14,
     borderWidth: 1,
+  },
+  sectionBlock: {
+    marginBottom: 12,
   },
   headerCard: {
     marginBottom: 10,
@@ -861,6 +899,32 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.sectionTitle,
     marginBottom: 4,
   },
+  statusEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  readyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  readyTitleBlock: {
+    flex: 1,
+  },
+  readyRoleName: {
+    fontSize: 21,
+    fontWeight: "700",
+    lineHeight: 26,
+  },
+  readyStatusLine: {
+    fontSize: 13,
+    marginTop: 2,
+    opacity: 0.9,
+  },
   helperText: {
     fontSize: 13,
     marginBottom: 12,
@@ -868,7 +932,7 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     marginTop: 0,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sectionLabel: {
     ...TYPOGRAPHY.metadata,
@@ -876,7 +940,7 @@ const styles = StyleSheet.create({
   },
   recentPills: {
     gap: 8,
-    paddingRight: 18,
+    paddingRight: 6,
   },
   pill: {
     flexDirection: "row",
@@ -946,7 +1010,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   logsRow: {
-    marginTop: 10,
     borderRadius: RADIUS.card,
     borderWidth: 1,
     paddingHorizontal: 12,
