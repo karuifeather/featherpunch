@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,24 +7,30 @@ import {
   StyleSheet,
   AppState,
   AppStateStatus,
-} from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
-import { useRoles } from '@/hooks/useRoles';
-import { useSessionStore } from '@/stores/session-store';
-import { useModalStore } from '@/stores/modal-store';
-import { RoleIcon } from '@/components/role-icon';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { RoleActionsModal } from '@/components/role-actions-modal';
-import { OverlayHeader } from '@/components/overlay-header';
-import { EdgeToEdgeScreen } from '@/components/screen-container';
-import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import { ACCENT } from '@/constants/colors';
-import { updateRole, deleteRole } from '@/db/roles';
-import { useRolesStore } from '@/stores/roles-store';
-import type { Role } from '@/types';
+} from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useEdgeToEdgeInsets } from "@/hooks/useEdgeToEdgeInsets";
+import { useRoles } from "@/hooks/useRoles";
+import { useSessionStore } from "@/stores/session-store";
+import { useModalStore } from "@/stores/modal-store";
+import { RoleIcon } from "@/components/role-icon";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { RoleActionsModal } from "@/components/role-actions-modal";
+import { OverlayHeader } from "@/components/overlay-header";
+import { EdgeToEdgeScreen } from "@/components/screen-container";
+import { RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import { ACCENT } from "@/constants/colors";
+import {
+  updateRole,
+  deleteRole,
+  getRoleDeletionSafety,
+  RoleDeleteBlockedError,
+} from "@/db/roles";
+import { useRolesStore } from "@/stores/roles-store";
+import type { Role, RoleDeletionSafety } from "@/types";
+import { getRoleActionPolicy } from "@/utils/roleDeletionPolicy";
 
 const ROW_PADDING_V = 12;
 const ROW_PADDING_H = 16;
@@ -32,7 +38,7 @@ const ICON_BG_SIZE = 40;
 
 function roleSubtitle(role: Role): string {
   if (role.hourlyRate != null) return `$${role.hourlyRate}/hr`;
-  return 'Role';
+  return "Role";
 }
 
 export default function RolesScreen() {
@@ -42,9 +48,13 @@ export default function RolesScreen() {
   const router = useRouter();
   const { openRoleEditor } = useModalStore();
   const [actionsRole, setActionsRole] = useState<Role | null>(null);
+  const [actionsSafety, setActionsSafety] = useState<RoleDeletionSafety | null>(
+    null,
+  );
   const [confirmRole, setConfirmRole] = useState<{
     role: Role;
-    action: 'archive' | 'delete';
+    action: "archive" | "delete";
+    safety: RoleDeletionSafety;
   } | null>(null);
   const refreshRolesData = useCallback(() => {
     refresh();
@@ -57,18 +67,23 @@ export default function RolesScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshRolesData();
-    }, [refreshRolesData])
+    }, [refreshRolesData]),
   );
 
   useEffect(() => {
     let lastAppState = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
-      if (isReturningToForeground) {
-        refreshRolesData();
-      }
-      lastAppState = nextAppState;
-    });
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        const isReturningToForeground =
+          lastAppState.match(/inactive|background/) &&
+          nextAppState === "active";
+        if (isReturningToForeground) {
+          refreshRolesData();
+        }
+        lastAppState = nextAppState;
+      },
+    );
 
     return () => subscription.remove();
   }, [refreshRolesData]);
@@ -76,30 +91,65 @@ export default function RolesScreen() {
   const activeRoles = roles.filter((r) => !r.isArchived);
   const archivedRoles = roles.filter((r) => r.isArchived);
 
-  const handleArchive = (role: Role) => setConfirmRole({ role, action: 'archive' });
-  const handleDelete = (role: Role) => setConfirmRole({ role, action: 'delete' });
+  const handleArchive = async (role: Role) => {
+    const safety = await getRoleDeletionSafety(role.id);
+    setConfirmRole({ role, action: "archive", safety });
+  };
+
+  const handleDelete = async (role: Role) => {
+    const safety = await getRoleDeletionSafety(role.id);
+    setConfirmRole({ role, action: "delete", safety });
+  };
 
   const bumpRolesVersion = useRolesStore((s) => s.bumpRolesVersion);
 
   const onConfirmAction = async () => {
     if (!confirmRole) return;
-    const { role, action } = confirmRole;
+    const { role, action, safety } = confirmRole;
     setConfirmRole(null);
-    if (action === 'archive') {
+    const actionPolicy = getRoleActionPolicy(role, safety);
+
+    if (action === "archive" && !actionPolicy.canArchive) return;
+    if (action === "delete" && !actionPolicy.canDeletePermanently) return;
+
+    if (action === "archive") {
       await updateRole(role.id, { isArchived: !role.isArchived });
     } else {
-      const wasActiveRole = useSessionStore.getState().active?.roleId === role.id;
-      await deleteRole(role.id);
+      const wasActiveRole =
+        useSessionStore.getState().active?.roleId === role.id;
+      try {
+        await deleteRole(role.id);
+      } catch (error) {
+        if (!(error instanceof RoleDeleteBlockedError)) {
+          throw error;
+        }
+      }
       if (wasActiveRole) useSessionStore.getState().clear();
     }
     bumpRolesVersion();
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!actionsRole) {
+      setActionsSafety(null);
+      return;
+    }
+
+    getRoleDeletionSafety(actionsRole.id).then((safety) => {
+      if (!cancelled) setActionsSafety(safety);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [actionsRole]);
+
   const headerSubtitle =
     activeRoles.length === 0 && !loading
-      ? 'Manage the roles you live'
+      ? "Manage the roles you live"
       : activeRoles.length === 1
-        ? '1 role'
+        ? "1 role"
         : `${activeRoles.length} roles`;
 
   const RoleRow = ({
@@ -134,7 +184,10 @@ export default function RolesScreen() {
         <Text style={[styles.rowTitle, { color: hex.text }]} numberOfLines={1}>
           {role.name}
         </Text>
-        <Text style={[styles.rowSubtitle, { color: hex.textSecondary }]} numberOfLines={1}>
+        <Text
+          style={[styles.rowSubtitle, { color: hex.textSecondary }]}
+          numberOfLines={1}
+        >
           {roleSubtitle(role)}
         </Text>
       </View>
@@ -147,7 +200,11 @@ export default function RolesScreen() {
         style={styles.overflowBtn}
         accessibilityLabel="Role options"
       >
-        <Ionicons name="ellipsis-horizontal" size={20} color={hex.textTertiary} />
+        <Ionicons
+          name="ellipsis-horizontal"
+          size={20}
+          color={hex.textTertiary}
+        />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -167,7 +224,9 @@ export default function RolesScreen() {
               accessibilityLabel="New role"
             >
               <Ionicons name="add" size={18} color={ACCENT.primary} />
-              <Text style={[styles.headerActionLabel, { color: ACCENT.primary }]}>
+              <Text
+                style={[styles.headerActionLabel, { color: ACCENT.primary }]}
+              >
                 New Role
               </Text>
             </TouchableOpacity>
@@ -203,7 +262,12 @@ export default function RolesScreen() {
           </View>
         ) : (
           <>
-            <View style={[styles.listCard, { backgroundColor: hex.surface, borderColor: hex.border }]}>
+            <View
+              style={[
+                styles.listCard,
+                { backgroundColor: hex.surface, borderColor: hex.border },
+              ]}
+            >
               {activeRoles.map((role, index) => (
                 <RoleRow
                   key={role.id}
@@ -216,10 +280,21 @@ export default function RolesScreen() {
 
             {archivedRoles.length > 0 && (
               <>
-                <Text style={[styles.sectionLabel, { color: hex.textTertiary }]}>
+                <Text
+                  style={[styles.sectionLabel, { color: hex.textTertiary }]}
+                >
                   Archived
                 </Text>
-                <View style={[styles.listCard, { backgroundColor: hex.surface, borderColor: hex.border, opacity: 0.85 }]}>
+                <View
+                  style={[
+                    styles.listCard,
+                    {
+                      backgroundColor: hex.surface,
+                      borderColor: hex.border,
+                      opacity: 0.85,
+                    },
+                  ]}
+                >
                   {archivedRoles.map((role, index) => (
                     <RoleRow
                       key={role.id}
@@ -241,25 +316,53 @@ export default function RolesScreen() {
           onEdit={(r) => openRoleEditor(r.id)}
           onArchive={handleArchive}
           onDelete={handleDelete}
+          deletionSafety={actionsSafety}
         />
 
-        {confirmRole && (
-          <ConfirmDialog
-            visible
-            title={confirmRole.action === 'delete' ? 'Delete role' : confirmRole.role.isArchived ? 'Restore role' : 'Archive role'}
-            message={
-              confirmRole.action === 'delete'
-                ? `Permanently delete "${confirmRole.role.name}" and all its entries? This cannot be undone.`
-                : confirmRole.role.isArchived
-                  ? `Restore "${confirmRole.role.name}"?`
-                  : `Archive "${confirmRole.role.name}"? Historical data will be kept.`
-            }
-            confirmLabel={confirmRole.action === 'delete' ? 'Delete' : confirmRole.role.isArchived ? 'Restore' : 'Archive'}
-            destructive={confirmRole.action === 'delete'}
-            onCancel={() => setConfirmRole(null)}
-            onConfirm={onConfirmAction}
-          />
-        )}
+        {confirmRole &&
+          (() => {
+            const policy = getRoleActionPolicy(
+              confirmRole.role,
+              confirmRole.safety,
+            );
+            const isDeleteFlow = confirmRole.action === "delete";
+            return (
+              <ConfirmDialog
+                visible
+                title={
+                  isDeleteFlow
+                    ? policy.deleteDialogTitle
+                    : confirmRole.role.isArchived
+                      ? "Restore role"
+                      : policy.archiveLabel
+                }
+                message={
+                  isDeleteFlow
+                    ? policy.deleteDialogMessage
+                    : policy.canArchive
+                      ? "Archive keeps all logs and removes this role from active use."
+                      : "Punch out before archiving this role."
+                }
+                confirmLabel={
+                  isDeleteFlow
+                    ? policy.deleteConfirmLabel
+                    : policy.canArchive
+                      ? confirmRole.role.isArchived
+                        ? "Restore"
+                        : "Archive role"
+                      : "OK"
+                }
+                destructive={isDeleteFlow && policy.canDeletePermanently}
+                onCancel={() => setConfirmRole(null)}
+                onConfirm={
+                  (isDeleteFlow && !policy.canDeletePermanently) ||
+                  (!isDeleteFlow && !policy.canArchive)
+                    ? () => setConfirmRole(null)
+                    : onConfirmAction
+                }
+              />
+            );
+          })()}
       </ScrollView>
     </EdgeToEdgeScreen>
   );
@@ -270,24 +373,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   headerActionLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   listCard: {
     borderRadius: RADIUS.card,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: ROW_PADDING_V,
     paddingHorizontal: ROW_PADDING_H,
     gap: 12,
@@ -301,12 +404,12 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 2,
   },
   rowSubtitle: {
     fontSize: 13,
-    fontWeight: '400',
+    fontWeight: "400",
   },
   overflowBtn: {
     padding: 8,
@@ -314,8 +417,8 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 20,
     marginBottom: 8,
@@ -323,7 +426,7 @@ const styles = StyleSheet.create({
   emptyState: {
     paddingTop: 32,
     paddingHorizontal: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyTitle: {
     ...TYPOGRAPHY.sectionTitle,
@@ -331,7 +434,7 @@ const styles = StyleSheet.create({
   },
   emptyMessage: {
     ...TYPOGRAPHY.body,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 24,
     paddingHorizontal: 16,
   },
@@ -342,7 +445,7 @@ const styles = StyleSheet.create({
   },
   emptyCtaLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: ACCENT.primaryForeground,
   },
 });

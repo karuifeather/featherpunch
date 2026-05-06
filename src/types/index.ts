@@ -65,6 +65,17 @@ export interface ActiveSession {
   elapsedMs: number;
 }
 
+export type RoleDeletionSafety = {
+  roleId: string;
+  canDeletePermanently: boolean;
+  completedSessionCount: number;
+  openSessionCount: number;
+  totalSessionCount: number;
+  lifetimeDurationMs: number;
+  lastSessionAt: string | null;
+  isActiveRole: boolean;
+};
+
 export interface RoleStat {
   roleId: string;
   roleName: string;
