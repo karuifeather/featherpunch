@@ -41,10 +41,14 @@ import {
 } from "@/utils/dateRanges";
 import { formatLocalDayLabel, getLocalDayKey } from "@/utils/localDate";
 import { deriveRoleRangeEmptyState } from "@/utils/roleRangeEmptyState";
+import {
+  buildOverviewRows,
+  deriveRoleChartState,
+  deriveRoleHeaderSubtext,
+  getTrendUnavailableCopy,
+} from "@/utils/roleDetailPresentation";
 import type { Role } from "@/types";
 import type { SessionWithRole } from "@/types";
-
-const MIN_ACTIVE_DAYS_FOR_CHART = 5;
 
 /** "7:40 PM – 7:48 PM" */
 function formatTimeRange(startAt: string, endAt: string | null): string {
@@ -149,7 +153,7 @@ function refetchSessions(
 export default function RoleStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hex, bg } = useThemeColors();
-  const { top: safeTop } = useEdgeToEdgeInsets();
+  const { top: safeTop, bottom: safeBottom } = useEdgeToEdgeInsets();
   const router = useRouter();
   const { openSessionEditor, sessionEditorId } = useModalStore();
   const [role, setRole] = useState<Role | null | undefined>(undefined);
@@ -161,6 +165,7 @@ export default function RoleStatsScreen() {
   const [lastCompletedSessionAt, setLastCompletedSessionAt] = useState<
     string | null
   >(null);
+  const [lifetimeDurationMs, setLifetimeDurationMs] = useState(0);
   const [period, setPeriod] = useState<Period>("7d");
   const prevSessionEditorId = useRef<string | null>(null);
 
@@ -171,6 +176,7 @@ export default function RoleStatsScreen() {
       getRoleHistorySummary(id).then((summary) => {
         setCompletedSessionCount(summary.completedSessionCount);
         setLastCompletedSessionAt(summary.lastSessionAt);
+        setLifetimeDurationMs(summary.lifetimeDurationMs);
       });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
     }, [id, period]),
@@ -185,6 +191,7 @@ export default function RoleStatsScreen() {
       getRoleHistorySummary(id).then((summary) => {
         setCompletedSessionCount(summary.completedSessionCount);
         setLastCompletedSessionAt(summary.lastSessionAt);
+        setLifetimeDurationMs(summary.lifetimeDurationMs);
       });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
     }
@@ -314,7 +321,13 @@ export default function RoleStatsScreen() {
     () => getRollingRange(getPresetFromPeriod(period)),
     [period],
   );
-  const primaryStat = `${formatDurationShort(totalMs)} in ${selectedRange.label.toLowerCase()}`;
+  const headerSubtext = deriveRoleHeaderSubtext({
+    roleName: role?.name ?? "",
+    period,
+    selectedRangeTotalMs: totalMs,
+    completedSessionCount,
+    lastSessionAt: lastCompletedSessionAt,
+  });
   const roleRangeEmptyState = useMemo(
     () =>
       deriveRoleRangeEmptyState({
@@ -373,46 +386,31 @@ export default function RoleStatsScreen() {
     sessionsNewestFirst.length > 0
       ? getDayLabel(sessionsNewestFirst[0].startAt)
       : null;
-
-  const overviewRows: { label: string; value: string }[] = [];
-  overviewRows.push({
-    label: "Total time",
-    value: formatDurationShort(totalMs),
-  });
-  if (role?.hourlyRate != null) {
-    const hours = totalMs / 3_600_000;
-    const estEarning = hours * role.hourlyRate;
-    overviewRows.push({
-      label: "Est. earning",
-      value: `$${estEarning.toFixed(2)}`,
-    });
-  }
-  overviewRows.push({
-    label: "Punch-ins",
-    value: String(analytics.sessionCount),
-  });
-  if (roleStat && roleStat.sessionCount >= 2) {
-    overviewRows.push({
-      label: "Average time in role",
-      value: formatDurationShort(roleStat.avgSessionMs),
-    });
-  }
   const last7 = rangeTotals["7d"];
   const last30 = rangeTotals["30d"];
-  overviewRows.push({
-    label: getRollingRange("last7Days").label,
-    value: formatDurationShort(last7),
+
+  const estimatedEarning =
+    role?.hourlyRate != null
+      ? `$${((totalMs / 3_600_000) * role.hourlyRate).toFixed(2)}`
+      : null;
+  const overviewRows = buildOverviewRows({
+    period,
+    totalMs,
+    sessionCount: analytics.sessionCount,
+    avgSessionMs: roleStat?.avgSessionMs ?? null,
+    longestSessionMs: analytics.longestSessionMs,
+    activeDaysInPeriod,
+    mostRecentDayActive,
+    lifetimeDurationMs,
+    includeEstimatedEarning: estimatedEarning,
+    last7Ms: last7,
+    last30Ms: last30,
   });
-  overviewRows.push({
-    label: getRollingRange("last30Days").label,
-    value: formatDurationShort(last30),
+  const trendUnavailableCopy = getTrendUnavailableCopy(activeDaysInPeriod);
+  const chartState = deriveRoleChartState({
+    selectedRangeSessionCount: sessions.length,
+    activeDaysInRange: activeDaysInPeriod,
   });
-  if (mostRecentDayActive) {
-    overviewRows.push({
-      label: "Most recent day active",
-      value: mostRecentDayActive,
-    });
-  }
 
   if (!id) return null;
   if (role === undefined) {
@@ -460,8 +458,8 @@ export default function RoleStatsScreen() {
       <ScrollView
         className={bg}
         contentContainerStyle={{
-          paddingTop: safeTop + 12,
-          paddingBottom: 32,
+          paddingTop: safeTop + 10,
+          paddingBottom: safeBottom + 84,
           paddingHorizontal: 20,
         }}
       >
@@ -471,8 +469,8 @@ export default function RoleStatsScreen() {
             flexDirection: "row",
             alignItems: "center",
             gap: 14,
-            marginBottom: 14,
-            paddingVertical: 4,
+            marginBottom: 10,
+            paddingVertical: 2,
           }}
         >
           <TouchableOpacity
@@ -497,11 +495,11 @@ export default function RoleStatsScreen() {
                 fontSize: 15,
                 fontWeight: "600",
                 color: hex.textSecondary,
-                marginTop: 4,
+                marginTop: 3,
                 fontVariant: ["tabular-nums"] as const,
               }}
             >
-              {primaryStat}
+              {headerSubtext}
             </Text>
           </View>
         </View>
@@ -513,7 +511,7 @@ export default function RoleStatsScreen() {
             backgroundColor: hex.surface,
             borderRadius: RADIUS.sm,
             padding: 3,
-            marginBottom: 16,
+            marginBottom: 12,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: hex.border,
           }}
@@ -546,7 +544,7 @@ export default function RoleStatsScreen() {
           style={{
             ...TYPOGRAPHY.metadata,
             color: hex.textTertiary,
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {selectedRange.label} · {selectedRange.displayRange}
@@ -558,7 +556,7 @@ export default function RoleStatsScreen() {
             style={{
               backgroundColor: hex.surface,
               borderRadius: RADIUS.card,
-              padding: 24,
+              padding: 18,
               marginBottom: 16,
               borderWidth: StyleSheet.hairlineWidth,
               borderColor: hex.border,
@@ -605,32 +603,10 @@ export default function RoleStatsScreen() {
                     marginTop: 6,
                   }}
                 >
-                  You last tracked {role.name} on{" "}
-                  {formatDate(roleRangeEmptyState.lastSessionAt)}.
+                  Last tracked {formatDate(roleRangeEmptyState.lastSessionAt)}
                 </Text>
-                {roleRangeEmptyState.canSwitchToWiderRange ? (
-                  <TouchableOpacity
-                    onPress={() => setPeriod("30d")}
-                    style={{
-                      alignSelf: "center",
-                      marginTop: 14,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color: ACCENT.primary,
-                      }}
-                    >
-                      View last 30 days
-                    </Text>
-                  </TouchableOpacity>
-                ) : period === "30d" ? (
-                  <View style={{ marginTop: 6, alignItems: "center" }}>
+                {roleRangeEmptyState.hasOlderHistory && (
+                  <View style={{ marginTop: 8, alignItems: "center" }}>
                     <Text
                       style={{
                         fontSize: 14,
@@ -640,6 +616,52 @@ export default function RoleStatsScreen() {
                     >
                       Older history exists.
                     </Text>
+                    <View
+                      style={{
+                        marginTop: 10,
+                        width: "100%",
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        borderRadius: RADIUS.sm,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: hex.border,
+                        backgroundColor: hex.elevated,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          ...TYPOGRAPHY.metadata,
+                          color: hex.textTertiary,
+                          marginBottom: 4,
+                          textAlign: "center",
+                        }}
+                      >
+                        Lifetime
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: hex.textSecondary,
+                          textAlign: "center",
+                          fontVariant: ["tabular-nums"] as const,
+                        }}
+                      >
+                        {formatDurationShort(lifetimeDurationMs)} ·{" "}
+                        {completedSessionCount} log
+                        {completedSessionCount === 1 ? "" : "s"}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: hex.textTertiary,
+                          textAlign: "center",
+                          marginTop: 4,
+                        }}
+                      >
+                        Last tracked{" "}
+                        {formatDate(roleRangeEmptyState.lastSessionAt)}
+                      </Text>
+                    </View>
                     <TouchableOpacity
                       onPress={() => router.push(`/(root)/logs?roleId=${id}`)}
                       style={{
@@ -660,94 +682,105 @@ export default function RoleStatsScreen() {
                       </Text>
                     </TouchableOpacity>
                   </View>
-                ) : null}
+                )}
               </>
             )}
           </View>
-        ) : activeDaysInPeriod < MIN_ACTIVE_DAYS_FOR_CHART ? (
-          <View
-            style={{
-              backgroundColor: hex.surface,
-              borderRadius: RADIUS.card,
-              padding: 24,
-              marginBottom: 16,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: hex.border,
-            }}
-          >
-            <Text
-              style={{
-                ...TYPOGRAPHY.body,
-                color: hex.textSecondary,
-                textAlign: "center",
-              }}
-            >
-              Not enough time yet for a {selectedRange.shortLabel} trend
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: hex.textTertiary,
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
-              Punch into this role across a few days to see the pattern
-            </Text>
-          </View>
         ) : (
-          <View
-            style={{
-              backgroundColor: hex.surface,
-              borderRadius: RADIUS.card,
-              padding: 16,
-              marginBottom: 16,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: hex.border,
-            }}
-          >
-            <BarChart
-              data={barData}
-              parentWidth={chartWidth}
-              adjustToWidth
-              roundedTop
-              roundedBottom
-              maxValue={chartYMax}
-              noOfSections={3}
-              showFractionalValues
-              roundToDigits={2}
-              minHeight={4}
-              height={140}
-              yAxisThickness={0}
-              xAxisThickness={0}
-              yAxisTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
-              hideRules
-              barBorderRadius={6}
-              isAnimated={false}
-            />
-            {period === "30d" && monthlyAxisLabels && (
+          <>
+            {chartState.shouldShowChart && (
               <View
                 style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  paddingLeft: 36,
-                  paddingRight: 8,
-                  marginTop: 4,
+                  backgroundColor: hex.surface,
+                  borderRadius: RADIUS.card,
+                  padding: 16,
+                  marginBottom: 10,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: hex.border,
                 }}
               >
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
-                  {monthlyAxisLabels.left}
-                </Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
-                  {monthlyAxisLabels.middle}
-                </Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
-                  {monthlyAxisLabels.right}
-                </Text>
+                <BarChart
+                  data={barData}
+                  parentWidth={chartWidth}
+                  adjustToWidth
+                  roundedTop
+                  roundedBottom
+                  maxValue={chartYMax}
+                  noOfSections={3}
+                  showFractionalValues
+                  roundToDigits={2}
+                  minHeight={4}
+                  height={140}
+                  yAxisThickness={0}
+                  xAxisThickness={0}
+                  yAxisTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
+                  xAxisLabelTextStyle={{
+                    color: hex.textTertiary,
+                    fontSize: 10,
+                  }}
+                  hideRules
+                  barBorderRadius={6}
+                  isAnimated={false}
+                />
+                {period === "30d" && monthlyAxisLabels && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingLeft: 36,
+                      paddingRight: 8,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.left}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.middle}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.right}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
-          </View>
+            {!chartState.hasEnoughDataForTrend &&
+              chartState.shouldShowChart && (
+                <View
+                  style={{
+                    backgroundColor: hex.elevated,
+                    borderRadius: RADIUS.card,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    marginBottom: 16,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: hex.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "500",
+                      color: hex.textSecondary,
+                      textAlign: "center",
+                    }}
+                  >
+                    {trendUnavailableCopy.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: hex.textTertiary,
+                      textAlign: "center",
+                      marginTop: 4,
+                    }}
+                  >
+                    {trendUnavailableCopy.body}
+                  </Text>
+                </View>
+              )}
+          </>
         )}
 
         {/* 4. Overview — single card */}
@@ -859,9 +892,9 @@ export default function RoleStatsScreen() {
                               activeOpacity={0.7}
                               style={{
                                 flexDirection: "row",
-                                alignItems: "center",
+                                alignItems: hasNote ? "flex-start" : "center",
                                 justifyContent: "space-between",
-                                paddingVertical: 12,
+                                paddingVertical: 11,
                                 paddingHorizontal: 14,
                                 borderBottomWidth: isLastInDay
                                   ? 0
@@ -877,7 +910,11 @@ export default function RoleStatsScreen() {
                                 }}
                               >
                                 <Text
-                                  style={{ fontSize: 15, color: hex.text }}
+                                  style={{
+                                    fontSize: 15,
+                                    color: hex.text,
+                                    lineHeight: 20,
+                                  }}
                                   numberOfLines={1}
                                 >
                                   {formatTimeRange(s.startAt, s.endAt)}
@@ -887,7 +924,8 @@ export default function RoleStatsScreen() {
                                     style={{
                                       fontSize: 13,
                                       color: hex.textTertiary,
-                                      marginTop: 2,
+                                      marginTop: 3,
+                                      lineHeight: 18,
                                     }}
                                     numberOfLines={2}
                                   >
@@ -900,6 +938,8 @@ export default function RoleStatsScreen() {
                                   flexDirection: "row",
                                   alignItems: "center",
                                   gap: 8,
+                                  minWidth: 84,
+                                  justifyContent: "flex-end",
                                 }}
                               >
                                 <Text
@@ -908,6 +948,7 @@ export default function RoleStatsScreen() {
                                     fontWeight: "600",
                                     color: hex.textSecondary,
                                     fontVariant: ["tabular-nums"] as const,
+                                    textAlign: "right",
                                   }}
                                 >
                                   {duration}

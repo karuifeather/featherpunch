@@ -113,7 +113,9 @@ export function computeRoleTimeSeries(
     const shortLabel =
       getLocalDayKey(d) === getLocalDayKey(today)
         ? "Today"
-        : formatLocalDayLabel(d);
+        : period === "7d"
+          ? d.toLocaleDateString(undefined, { weekday: "short" })
+          : formatLocalDayLabel(d);
     result.push({ dateKey, totalMs, label: shortLabel });
     d.setDate(d.getDate() + 1);
   }

@@ -28,7 +28,7 @@ describe("deriveRoleRangeEmptyState", () => {
     expect(result).toEqual({ kind: "noLogsEver" });
   });
 
-  it("returns noLogsInRange with wider-range CTA for last7 when last session is in last30", () => {
+  it("returns noLogsInRange with older-history flag for last7", () => {
     const result = deriveRoleRangeEmptyState({
       period: "7d",
       selectedRangeSessionCount: 0,
@@ -41,11 +41,11 @@ describe("deriveRoleRangeEmptyState", () => {
       kind: "noLogsInRange",
       rangeLabel: "last 7 days",
       lastSessionAt: "2026-04-23T12:30:00.000Z",
-      canSwitchToWiderRange: true,
+      hasOlderHistory: true,
     });
   });
 
-  it("returns noLogsInRange without CTA for last30 when history is older", () => {
+  it("returns noLogsInRange with older-history flag for last30", () => {
     const result = deriveRoleRangeEmptyState({
       period: "30d",
       selectedRangeSessionCount: 0,
@@ -58,7 +58,7 @@ describe("deriveRoleRangeEmptyState", () => {
       kind: "noLogsInRange",
       rangeLabel: "last 30 days",
       lastSessionAt: "2026-03-12T09:00:00.000Z",
-      canSwitchToWiderRange: false,
+      hasOlderHistory: true,
     });
   });
 });

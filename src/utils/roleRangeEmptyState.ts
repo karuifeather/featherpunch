@@ -1,7 +1,4 @@
-import {
-  getRollingRange,
-  getRollingRangeQueryBounds,
-} from "@/utils/dateRanges";
+import { getRollingRange } from "@/utils/dateRanges";
 
 export type RoleRangePeriod = "7d" | "30d";
 
@@ -12,20 +9,11 @@ export type RoleRangeEmptyState =
       kind: "noLogsInRange";
       rangeLabel: string;
       lastSessionAt: string;
-      canSwitchToWiderRange: boolean;
+      hasOlderHistory: true;
     };
 
 function getPreset(period: RoleRangePeriod): "last7Days" | "last30Days" {
   return period === "7d" ? "last7Days" : "last30Days";
-}
-
-function isWithinLast30Days(isoString: string, now: Date): boolean {
-  const range = getRollingRange("last30Days", now);
-  const bounds = getRollingRangeQueryBounds(range);
-  const value = new Date(isoString).getTime();
-  const start = new Date(bounds.startIso).getTime();
-  const endExclusive = new Date(bounds.endExclusiveIso).getTime();
-  return value >= start && value < endExclusive;
 }
 
 export function deriveRoleRangeEmptyState(params: {
@@ -51,7 +39,6 @@ export function deriveRoleRangeEmptyState(params: {
     kind: "noLogsInRange",
     rangeLabel: getRollingRange(getPreset(period), now).label.toLowerCase(),
     lastSessionAt,
-    canSwitchToWiderRange:
-      period === "7d" && isWithinLast30Days(lastSessionAt, now),
+    hasOlderHistory: true,
   };
 }
