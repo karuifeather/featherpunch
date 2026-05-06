@@ -451,7 +451,7 @@ export default function HomeScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: top + SPACING.sm,
+            paddingTop: top + SPACING.lg,
             paddingBottom: homeBottomPadding,
           },
         ]}
