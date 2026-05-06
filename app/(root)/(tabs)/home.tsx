@@ -71,6 +71,8 @@ export default function HomeScreen() {
   const [confirmClockInRole, setConfirmClockInRole] = useState<Role | null>(
     null,
   );
+  const [confirmQuickSwitchRole, setConfirmQuickSwitchRole] =
+    useState<Role | null>(null);
   const [confirmClockOut, setConfirmClockOut] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<{
@@ -399,12 +401,18 @@ export default function HomeScreen() {
   const handleRolePillPress = (role: Role) => {
     if (active) {
       if (active.roleId === role.id) return;
-      setSelectedRoleId(role.id);
-      switchRole(role.id).then(refreshSessions);
+      setConfirmQuickSwitchRole(role);
     } else {
       setSelectedRoleId(role.id);
       confirmAndClockIn(role);
     }
+  };
+
+  const onConfirmQuickSwitchRole = async () => {
+    if (!confirmQuickSwitchRole) return;
+    setSelectedRoleId(confirmQuickSwitchRole.id);
+    await switchRole(confirmQuickSwitchRole.id).then(refreshSessions);
+    setConfirmQuickSwitchRole(null);
   };
 
   const showRecentRoles = recentRoleIds.length >= 2;
@@ -790,6 +798,16 @@ export default function HomeScreen() {
           confirmLabel="Punch out"
           onCancel={() => setConfirmClockOut(false)}
           onConfirm={onConfirmClockOut}
+        />
+      )}
+      {confirmQuickSwitchRole && active && (
+        <ConfirmDialog
+          visible
+          title="Switch role"
+          message={`Switch from ${active.roleName} to ${confirmQuickSwitchRole.name}?`}
+          confirmLabel="Switch role"
+          onCancel={() => setConfirmQuickSwitchRole(null)}
+          onConfirm={onConfirmQuickSwitchRole}
         />
       )}
     </EdgeToEdgeScreen>
