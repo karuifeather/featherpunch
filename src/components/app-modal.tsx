@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { RADIUS } from '@/constants/designTokens';
+} from "react-native";
+import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { RADIUS } from "@/constants/designTokens";
 
-const BACKDROP_OPACITY = 0.5;
+const BACKDROP_OPACITY = 0.08;
+const BACKDROP_BLUR_INTENSITY = 70;
 const H_PAD = 20;
 
 export interface AppModalProps {
@@ -66,16 +68,27 @@ export function AppModal({
       transparent
       animationType="slide"
       onRequestClose={onClose}
-      statusBarTranslucent={Platform.OS === 'android'}
+      statusBarTranslucent={Platform.OS === "android"}
     >
       <View style={StyleSheet.absoluteFill} collapsable={false}>
         <Pressable
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: `rgba(0,0,0,${BACKDROP_OPACITY})` },
-          ]}
+          style={StyleSheet.absoluteFill}
           onPress={closeOnBackdrop ? onClose : undefined}
-        />
+        >
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            intensity={BACKDROP_BLUR_INTENSITY}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: `rgba(0,0,0,${BACKDROP_OPACITY})` },
+            ]}
+          />
+        </Pressable>
         <View
           style={[
             styles.sheet,
@@ -110,33 +123,33 @@ export function AppModal({
 
 const styles = StyleSheet.create({
   sheet: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
-    overflow: 'hidden',
-    maxHeight: '90%',
+    overflow: "hidden",
+    maxHeight: "90%",
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: 8,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: H_PAD,
     paddingTop: 12,
     paddingBottom: 16,
   },
   title: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: -0.4,
     flex: 1,
   },

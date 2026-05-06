@@ -1,11 +1,11 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faExclamationCircle, faRedo } from '@fortawesome/free-solid-svg-icons';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { ACCENT, SEMANTIC } from '@/constants/colors';
-import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import * as Haptics from "expo-haptics";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faExclamationCircle, faRedo } from "@fortawesome/free-solid-svg-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { ACCENT, SEMANTIC } from "@/constants/colors";
+import { RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
 
 interface ErrorMessageProps {
   message: string;
@@ -16,7 +16,7 @@ interface ErrorMessageProps {
 export default function ErrorMessage({
   message,
   onRetry,
-  className = '',
+  className = "",
 }: ErrorMessageProps) {
   const { hex } = useThemeColors();
   return (
@@ -26,11 +26,11 @@ export default function ErrorMessage({
         borderRadius: RADIUS.card,
         padding: 16,
         borderWidth: 1,
-        borderColor: 'rgba(239,68,68,0.2)',
+        borderColor: "rgba(239,68,68,0.2)",
       }}
       className={className}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
         <FontAwesomeIcon
           icon={faExclamationCircle}
           size={20}
@@ -54,7 +54,7 @@ export default function ErrorMessage({
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onRetry();
           }}
-          style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center' }}
+          style={{ marginTop: 14, flexDirection: "row", alignItems: "center" }}
           accessibilityLabel="Try again"
           accessibilityRole="button"
         >
@@ -63,7 +63,7 @@ export default function ErrorMessage({
             style={{
               marginLeft: 8,
               fontSize: 14,
-              fontWeight: '600',
+              fontWeight: "600",
               color: ACCENT.primary,
             }}
           >

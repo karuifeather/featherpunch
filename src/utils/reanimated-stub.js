@@ -3,8 +3,8 @@
  * (e.g. Expo Go or dev client without Reanimated properly built).
  * Prevents ReanimatedModule NullPointerException and makeMutable undefined errors.
  */
-const React = require('react');
-const { View, ScrollView, FlatList } = require('react-native');
+const React = require("react");
+const { View, ScrollView, FlatList } = require("react-native");
 
 function makeMutable(initial) {
   return { value: initial };
@@ -42,7 +42,7 @@ function runOnUI(fn) {
   return () => {
     try {
       fn();
-    } catch (_) {}
+    } catch {}
   };
 }
 
@@ -51,7 +51,14 @@ function runOnJS(fn) {
 }
 
 function measure() {
-  return Promise.resolve({ width: 0, height: 0, x: 0, y: 0, pageX: 0, pageY: 0 });
+  return Promise.resolve({
+    width: 0,
+    height: 0,
+    x: 0,
+    y: 0,
+    pageX: 0,
+    pageY: 0,
+  });
 }
 
 function startScreenTransition() {}
@@ -86,9 +93,9 @@ const Easing = {
 };
 
 const Extrapolation = {
-  IDENTITY: 'identity',
-  CLAMP: 'clamp',
-  EXTEND: 'extend',
+  IDENTITY: "identity",
+  CLAMP: "clamp",
+  EXTEND: "extend",
 };
 
 const ReduceMotion = { System: 0, Always: 1, Never: 2 };

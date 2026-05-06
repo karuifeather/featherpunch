@@ -1,71 +1,84 @@
-import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
-import { useModalStore } from '@/stores/modal-store';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { BarChart } from 'react-native-gifted-charts';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
-import { getRoleById } from '@/db/roles';
-import { getSessionsByRoleAndDateRange } from '@/db/sessions';
-import { computeAnalytics, computeRoleTimeSeries } from '@/services/analytics';
-import { RoleIcon } from '@/components/role-icon';
-import { TagIndicator } from '@/components/tag-indicator';
-import { EdgeToEdgeScreen } from '@/components/screen-container';
-import { ACCENT, RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import { formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
-import type { Role } from '@/types';
-import type { SessionWithRole } from '@/types';
-
-const MIN_ACTIVE_DAYS_FOR_CHART = 5;
+import React, {
+  useCallback,
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
+import { useLocalSearchParams, useFocusEffect, useRouter } from "expo-router";
+import { useModalStore } from "@/stores/modal-store";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { BarChart } from "react-native-gifted-charts";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useEdgeToEdgeInsets } from "@/hooks/useEdgeToEdgeInsets";
+import { getRoleById } from "@/db/roles";
+import {
+  getRoleHistorySummary,
+  getSessionsByRoleAndDateRange,
+} from "@/db/sessions";
+import { computeAnalytics, computeRoleTimeSeries } from "@/services/analytics";
+import { RoleIcon } from "@/components/role-icon";
+import { EdgeToEdgeScreen } from "@/components/screen-container";
+import { ACCENT, RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import {
+  formatDate,
+  formatDurationShort,
+  formatTime,
+  getDayLabel,
+} from "@/utils/formatTime";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+  type RollingRangePreset,
+} from "@/utils/dateRanges";
+import { formatLocalDayLabel, getLocalDayKey } from "@/utils/localDate";
+import { deriveRoleRangeEmptyState } from "@/utils/roleRangeEmptyState";
+import {
+  buildOverviewRows,
+  deriveRoleChartState,
+  deriveRoleHeaderSubtext,
+  getTrendUnavailableCopy,
+} from "@/utils/roleDetailPresentation";
+import type { Role } from "@/types";
+import type { SessionWithRole } from "@/types";
 
 /** "7:40 PM – 7:48 PM" */
 function formatTimeRange(startAt: string, endAt: string | null): string {
-  if (!endAt) return formatTime(startAt) + ' – —';
+  if (!endAt) return formatTime(startAt) + " – —";
   return `${formatTime(startAt)} – ${formatTime(endAt)}`;
-}
-
-function toLocalDateKey(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 /** Pick a y-axis max so the chart scales to the data (hours). Uses nice steps. */
 function getNiceChartMax(maxBarValueHours: number): number {
   const NICE = [0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
   if (maxBarValueHours <= 0) return 0.5;
-  const withHeadroom = Math.max(maxBarValueHours * 1.15, maxBarValueHours + 0.05);
+  const withHeadroom = Math.max(
+    maxBarValueHours * 1.15,
+    maxBarValueHours + 0.05,
+  );
   const found = NICE.find((n) => n >= withHeadroom);
   return found ?? (Math.ceil(withHeadroom) || 1);
 }
 
-type Period = '7d' | '30d';
+type Period = "7d" | "30d";
 
-function getDateRange(period: Period): { start: string; end: string } {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const days = period === '7d' ? 7 : 30;
-  const start = new Date(end);
-  start.setDate(start.getDate() - days);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
-/** Start of current year and end of today (ISO). For YTD and range fetches. */
-function getYearToDateRange(): { start: string; end: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return { start: start.toISOString(), end: end.toISOString() };
+function getPresetFromPeriod(period: Period): RollingRangePreset {
+  return period === "7d" ? "last7Days" : "last30Days";
 }
 
 /** Total ms for completed sessions within [startIso, endIso). */
 function totalMsInRange(
   sessions: SessionWithRole[],
   startIso: string,
-  endIso: string
+  endIso: string,
 ): number {
   const startMs = new Date(startIso).getTime();
   const endMs = new Date(endIso).getTime();
@@ -91,16 +104,23 @@ function OverviewRow({
   return (
     <View
       style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         paddingVertical: 10,
         borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: hex.border,
       }}
     >
       <Text style={{ fontSize: 14, color: hex.textSecondary }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '500', color: hex.text, fontVariant: ['tabular-nums'] as const }}>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: "500",
+          color: hex.text,
+          fontVariant: ["tabular-nums"] as const,
+        }}
+      >
         {value}
       </Text>
     </View>
@@ -111,36 +131,68 @@ function refetchSessions(
   roleId: string,
   period: Period,
   setSessions: (s: SessionWithRole[]) => void,
-  setSessionsForRanges: (s: SessionWithRole[]) => void
+  setSessionsForRanges: (s: SessionWithRole[]) => void,
 ) {
-  const { start, end } = getDateRange(period);
-  getSessionsByRoleAndDateRange(roleId, start, end).then(setSessions);
-  const ytd = getYearToDateRange();
-  getSessionsByRoleAndDateRange(roleId, ytd.start, ytd.end).then(setSessionsForRanges);
+  const selectedRange = getRollingRange(getPresetFromPeriod(period));
+  const selectedBounds = getRollingRangeQueryBounds(selectedRange);
+  getSessionsByRoleAndDateRange(
+    roleId,
+    selectedBounds.startIso,
+    selectedBounds.endExclusiveIso,
+  ).then(setSessions);
+  const widestRollingBounds = getRollingRangeQueryBounds(
+    getRollingRange("last90Days"),
+  );
+  getSessionsByRoleAndDateRange(
+    roleId,
+    widestRollingBounds.startIso,
+    widestRollingBounds.endExclusiveIso,
+  ).then(setSessionsForRanges);
 }
 
 export default function RoleStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hex, bg } = useThemeColors();
-  const { top: safeTop } = useEdgeToEdgeInsets();
+  const { top: safeTop, bottom: safeBottom } = useEdgeToEdgeInsets();
   const router = useRouter();
   const { openSessionEditor, sessionEditorId } = useModalStore();
   const [role, setRole] = useState<Role | null | undefined>(undefined);
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
-  const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>([]);
-  const [period, setPeriod] = useState<Period>('7d');
+  const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>(
+    [],
+  );
+  const [completedSessionCount, setCompletedSessionCount] = useState(0);
+  const [lastCompletedSessionAt, setLastCompletedSessionAt] = useState<
+    string | null
+  >(null);
+  const [lifetimeDurationMs, setLifetimeDurationMs] = useState(0);
+  const [period, setPeriod] = useState<Period>("7d");
   const prevSessionEditorId = useRef<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
       getRoleById(id).then((r) => setRole(r ?? null));
+      getRoleHistorySummary(id).then((summary) => {
+        setCompletedSessionCount(summary.completedSessionCount);
+        setLastCompletedSessionAt(summary.lastSessionAt);
+        setLifetimeDurationMs(summary.lifetimeDurationMs);
+      });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
-    }, [id, period])
+    }, [id, period]),
   );
 
   useEffect(() => {
-    if (prevSessionEditorId.current !== null && sessionEditorId === null && id) {
+    if (
+      prevSessionEditorId.current !== null &&
+      sessionEditorId === null &&
+      id
+    ) {
+      getRoleHistorySummary(id).then((summary) => {
+        setCompletedSessionCount(summary.completedSessionCount);
+        setLastCompletedSessionAt(summary.lastSessionAt);
+        setLifetimeDurationMs(summary.lifetimeDurationMs);
+      });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
     }
     prevSessionEditorId.current = sessionEditorId;
@@ -148,31 +200,44 @@ export default function RoleStatsScreen() {
 
   const rangeTotals = useMemo(() => {
     const now = new Date();
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
-    const start7 = new Date(now); start7.setDate(start7.getDate() - 7);
-    const start14 = new Date(now); start14.setDate(start14.getDate() - 14);
-    const start30 = new Date(now); start30.setDate(start30.getDate() - 30);
-    const start60 = new Date(now); start60.setDate(start60.getDate() - 60);
-    const start90 = new Date(now); start90.setDate(start90.getDate() - 90);
-    const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString();
+    const last7 = getRollingRangeQueryBounds(getRollingRange("last7Days", now));
+    const last30 = getRollingRangeQueryBounds(
+      getRollingRange("last30Days", now),
+    );
+    const last90 = getRollingRangeQueryBounds(
+      getRollingRange("last90Days", now),
+    );
     return {
-      '7d': totalMsInRange(sessionsForRanges, start7.toISOString(), endOfToday),
-      '14d': totalMsInRange(sessionsForRanges, start14.toISOString(), endOfToday),
-      '30d': totalMsInRange(sessionsForRanges, start30.toISOString(), endOfToday),
-      '60d': totalMsInRange(sessionsForRanges, start60.toISOString(), endOfToday),
-      '90d': totalMsInRange(sessionsForRanges, start90.toISOString(), endOfToday),
-      ytd: totalMsInRange(sessionsForRanges, ytdStart, endOfToday),
+      "7d": totalMsInRange(
+        sessionsForRanges,
+        last7.startIso,
+        last7.endExclusiveIso,
+      ),
+      "30d": totalMsInRange(
+        sessionsForRanges,
+        last30.startIso,
+        last30.endExclusiveIso,
+      ),
+      "90d": totalMsInRange(
+        sessionsForRanges,
+        last90.startIso,
+        last90.endExclusiveIso,
+      ),
     };
   }, [sessionsForRanges]);
 
   const analytics = useMemo(() => computeAnalytics(sessions), [sessions]);
-  const timeSeries = useMemo(() => computeRoleTimeSeries(sessions, period), [sessions, period]);
+  const timeSeries = useMemo(
+    () => computeRoleTimeSeries(sessions, period),
+    [sessions, period],
+  );
 
   // Chart data: use sessions (period fetch) when available so chart shows immediately; else use sessionsForRanges filtered to period
   const sessionsInPeriodFromRanges = useMemo(() => {
-    const { start, end } = getDateRange(period);
-    const startMs = new Date(start).getTime();
-    const endMs = new Date(end).getTime();
+    const selectedRange = getRollingRange(getPresetFromPeriod(period));
+    const selectedBounds = getRollingRangeQueryBounds(selectedRange);
+    const startMs = new Date(selectedBounds.startIso).getTime();
+    const endMs = new Date(selectedBounds.endExclusiveIso).getTime();
     return sessionsForRanges.filter((s) => {
       const t = new Date(s.startAt).getTime();
       return t >= startMs && t < endMs;
@@ -181,78 +246,127 @@ export default function RoleStatsScreen() {
 
   const timeSeriesForChartFromRanges = useMemo(
     () => computeRoleTimeSeries(sessionsInPeriodFromRanges, period),
-    [sessionsInPeriodFromRanges, period]
+    [sessionsInPeriodFromRanges, period],
   );
 
   const barData = useMemo(() => {
-    const series = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+    const series =
+      sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
     return series.map((d) => {
-      const xLabel = period === '30d' ? undefined : d.label;
-      const item: { value: number; label?: string; frontColor: string; labelComponent?: () => React.ReactNode } = {
+      const xLabel = period === "30d" ? undefined : d.label;
+      const item: {
+        value: number;
+        label?: string;
+        frontColor: string;
+        labelComponent?: () => React.ReactNode;
+      } = {
         value: Math.round((d.totalMs / 3600000) * 10) / 10,
         frontColor: role?.color ?? hex.text,
       };
-      if (period === '7d' && xLabel) item.label = xLabel;
-      if (period === '30d') item.labelComponent = () => <View style={{ width: 0, height: 0 }} />;
+      if (period === "7d" && xLabel) item.label = xLabel;
+      if (period === "30d")
+        item.labelComponent = () => <View style={{ width: 0, height: 0 }} />;
       return item;
     });
-  }, [sessions.length, timeSeries, timeSeriesForChartFromRanges, period, role?.color, hex.text]);
+  }, [
+    sessions.length,
+    timeSeries,
+    timeSeriesForChartFromRanges,
+    period,
+    role?.color,
+    hex.text,
+  ]);
 
   const monthlyAxisLabels = useMemo(() => {
-    if (period !== '30d') return null;
-    const series = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+    if (period !== "30d") return null;
+    const series =
+      sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
     if (series.length < 30) return null;
     const first = series[0];
     const mid = series[14];
     const last = series[29];
     const fmt = (dateKey: string) => {
-      const [y, m, d] = dateKey.split('-').map(Number);
-      const monthShort = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short' });
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const monthShort = new Date(y, m - 1, 1).toLocaleDateString(undefined, {
+        month: "short",
+      });
       return `${monthShort} ${d}`;
     };
-    return { left: fmt(first.dateKey), middle: mid.dateKey.slice(8, 10), right: fmt(last.dateKey) };
+    return {
+      left: fmt(first.dateKey),
+      middle: mid.dateKey.slice(8, 10),
+      right: fmt(last.dateKey),
+    };
   }, [period, sessions.length, timeSeries, timeSeriesForChartFromRanges]);
 
   const chartYMax = useMemo(() => {
-    const maxHours = barData.length ? Math.max(...barData.map((d) => d.value)) : 0;
+    const maxHours = barData.length
+      ? Math.max(...barData.map((d) => d.value))
+      : 0;
     return getNiceChartMax(maxHours);
   }, [barData]);
 
-  const seriesForChart = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+  const seriesForChart =
+    sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
   const activeDaysInPeriod = useMemo(
     () => seriesForChart.filter((d) => d.totalMs > 0).length,
-    [seriesForChart]
+    [seriesForChart],
   );
-  const showChart = barData.length > 0 && activeDaysInPeriod >= MIN_ACTIVE_DAYS_FOR_CHART;
-  const chartWidth = Dimensions.get('window').width - 80;
+  const chartWidth = Dimensions.get("window").width - 80;
 
   const roleStat = analytics.roleStats[0];
   const totalMs = roleStat?.totalMs ?? 0;
 
-  const periodLabel = period === '7d' ? 'this week' : 'this month';
-  const primaryStat = `${formatDurationShort(totalMs)} ${periodLabel}`;
-
-  const sessionsNewestFirst = useMemo(
-    () => [...sessions].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()),
-    [sessions]
+  const selectedRange = useMemo(
+    () => getRollingRange(getPresetFromPeriod(period)),
+    [period],
+  );
+  const headerSubtext = deriveRoleHeaderSubtext({
+    roleName: role?.name ?? "",
+    period,
+    selectedRangeTotalMs: totalMs,
+    completedSessionCount,
+    lastSessionAt: lastCompletedSessionAt,
+  });
+  const roleRangeEmptyState = useMemo(
+    () =>
+      deriveRoleRangeEmptyState({
+        period,
+        selectedRangeSessionCount: sessions.length,
+        completedSessionCount,
+        lastSessionAt: lastCompletedSessionAt,
+      }),
+    [period, sessions.length, completedSessionCount, lastCompletedSessionAt],
   );
 
-  const { logSessions, zeroMinuteSessions, showCorrectionsToggle } = useMemo(() => {
-    const getMs = (s: SessionWithRole) =>
-      s.durationMs ?? (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : 0);
-    const zero: SessionWithRole[] = [];
-    const main: SessionWithRole[] = [];
-    for (const s of sessionsNewestFirst) {
-      const ms = getMs(s);
-      if (ms < 60_000) zero.push(s);
-      else main.push(s);
-    }
-    return {
-      logSessions: main,
-      zeroMinuteSessions: zero,
-      showCorrectionsToggle: zero.length > 0,
-    };
-  }, [sessionsNewestFirst]);
+  const sessionsNewestFirst = useMemo(
+    () =>
+      [...sessions].sort(
+        (a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime(),
+      ),
+    [sessions],
+  );
+
+  const { logSessions, zeroMinuteSessions, showCorrectionsToggle } =
+    useMemo(() => {
+      const getMs = (s: SessionWithRole) =>
+        s.durationMs ??
+        (s.endAt
+          ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime()
+          : 0);
+      const zero: SessionWithRole[] = [];
+      const main: SessionWithRole[] = [];
+      for (const s of sessionsNewestFirst) {
+        const ms = getMs(s);
+        if (ms < 60_000) zero.push(s);
+        else main.push(s);
+      }
+      return {
+        logSessions: main,
+        zeroMinuteSessions: zero,
+        showCorrectionsToggle: zero.length > 0,
+      };
+    }, [sessionsNewestFirst]);
 
   const [showCorrections, setShowCorrections] = useState(false);
   const logSessionsToShow = showCorrections ? sessionsNewestFirst : logSessions;
@@ -260,7 +374,7 @@ export default function RoleStatsScreen() {
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, SessionWithRole[]>();
     for (const s of logSessionsToShow) {
-      const key = toLocalDateKey(s.startAt);
+      const key = getLocalDayKey(s.startAt);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     }
@@ -272,37 +386,43 @@ export default function RoleStatsScreen() {
     sessionsNewestFirst.length > 0
       ? getDayLabel(sessionsNewestFirst[0].startAt)
       : null;
+  const last7 = rangeTotals["7d"];
+  const last30 = rangeTotals["30d"];
 
-  const overviewRows: { label: string; value: string }[] = [];
-  overviewRows.push({ label: 'Total time', value: formatDurationShort(totalMs) });
-  if (role?.hourlyRate != null) {
-    const hours = totalMs / 3_600_000;
-    const estEarning = hours * role.hourlyRate;
-    overviewRows.push({ label: 'Est. earning', value: `$${estEarning.toFixed(2)}` });
-  }
-  overviewRows.push({ label: 'Punch-ins', value: String(analytics.sessionCount) });
-  if (roleStat && roleStat.sessionCount >= 2) {
-    overviewRows.push({
-      label: 'Average time in role',
-      value: formatDurationShort(roleStat.avgSessionMs),
-    });
-  }
-  const last7 = rangeTotals['7d'];
-  const last30 = rangeTotals['30d'];
-  const show7d = period === '30d' || last7 !== last30;
-  const show30d = period === '7d' || last7 !== last30;
-  if (show7d) overviewRows.push({ label: 'Last 7 days', value: formatDurationShort(last7) });
-  if (show30d) overviewRows.push({ label: 'Last 30 days', value: formatDurationShort(last30) });
-  if (mostRecentDayActive) {
-    overviewRows.push({ label: 'Most recent day active', value: mostRecentDayActive });
-  }
+  const estimatedEarning =
+    role?.hourlyRate != null
+      ? `$${((totalMs / 3_600_000) * role.hourlyRate).toFixed(2)}`
+      : null;
+  const overviewRows = buildOverviewRows({
+    period,
+    totalMs,
+    sessionCount: analytics.sessionCount,
+    avgSessionMs: roleStat?.avgSessionMs ?? null,
+    longestSessionMs: analytics.longestSessionMs,
+    activeDaysInPeriod,
+    mostRecentDayActive,
+    lifetimeDurationMs,
+    includeEstimatedEarning: estimatedEarning,
+    last7Ms: last7,
+    last30Ms: last30,
+  });
+  const trendUnavailableCopy = getTrendUnavailableCopy(activeDaysInPeriod);
+  const chartState = deriveRoleChartState({
+    selectedRangeSessionCount: sessions.length,
+    activeDaysInRange: activeDaysInPeriod,
+  });
 
   if (!id) return null;
   if (role === undefined) {
     return (
       <EdgeToEdgeScreen>
-        <View className={bg} style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}>
-          <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary }}>Loading…</Text>
+        <View
+          className={bg}
+          style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}
+        >
+          <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary }}>
+            Loading…
+          </Text>
         </View>
       </EdgeToEdgeScreen>
     );
@@ -310,10 +430,17 @@ export default function RoleStatsScreen() {
   if (role === null) {
     return (
       <EdgeToEdgeScreen>
-        <View className={bg} style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}>
+        <View
+          className={bg}
+          style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}
+        >
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <FontAwesome name="chevron-left" size={20} color={ACCENT.primary} />
@@ -331,19 +458,19 @@ export default function RoleStatsScreen() {
       <ScrollView
         className={bg}
         contentContainerStyle={{
-          paddingTop: safeTop + 12,
-          paddingBottom: 32,
+          paddingTop: safeTop + 10,
+          paddingBottom: safeBottom + 84,
           paddingHorizontal: 20,
         }}
       >
         {/* 1. Role detail header (back + icon + name) */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: "row",
+            alignItems: "center",
             gap: 14,
-            marginBottom: 14,
-            paddingVertical: 4,
+            marginBottom: 10,
+            paddingVertical: 2,
           }}
         >
           <TouchableOpacity
@@ -357,22 +484,22 @@ export default function RoleStatsScreen() {
           </TouchableOpacity>
           <RoleIcon icon={role.icon} color={role.color} size={28} bgSize={52} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text }} numberOfLines={1}>
+            <Text
+              style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text }}
+              numberOfLines={1}
+            >
               {role.name}
             </Text>
-            <View style={{ marginTop: 4 }}>
-              <TagIndicator tag={role.tag} showLabel size="sm" />
-            </View>
             <Text
               style={{
                 fontSize: 15,
-                fontWeight: '600',
+                fontWeight: "600",
                 color: hex.textSecondary,
-                marginTop: 6,
-                fontVariant: ['tabular-nums'] as const,
+                marginTop: 3,
+                fontVariant: ["tabular-nums"] as const,
               }}
             >
-              {primaryStat}
+              {headerSubtext}
             </Text>
           </View>
         </View>
@@ -380,16 +507,16 @@ export default function RoleStatsScreen() {
         {/* 2. Period selector — compact segmented control */}
         <View
           style={{
-            flexDirection: 'row',
+            flexDirection: "row",
             backgroundColor: hex.surface,
             borderRadius: RADIUS.sm,
             padding: 3,
-            marginBottom: 16,
+            marginBottom: 12,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: hex.border,
           }}
         >
-          {(['7d', '30d'] as Period[]).map((p) => (
+          {(["7d", "30d"] as Period[]).map((p) => (
             <TouchableOpacity
               key={p}
               onPress={() => setPeriod(p)}
@@ -397,111 +524,263 @@ export default function RoleStatsScreen() {
                 flex: 1,
                 paddingVertical: 8,
                 borderRadius: RADIUS.sm - 2,
-                backgroundColor: period === p ? hex.elevated : 'transparent',
+                backgroundColor: period === p ? hex.elevated : "transparent",
               }}
             >
               <Text
                 style={{
                   fontSize: 14,
-                  fontWeight: period === p ? '600' : '500',
+                  fontWeight: period === p ? "600" : "500",
                   color: period === p ? hex.text : hex.textSecondary,
-                  textAlign: 'center',
+                  textAlign: "center",
                 }}
               >
-                {p === '7d' ? 'Weekly' : 'Monthly'}
+                {p === "7d" ? "7 days" : "30 days"}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+        <Text
+          style={{
+            ...TYPOGRAPHY.metadata,
+            color: hex.textTertiary,
+            marginBottom: 12,
+          }}
+        >
+          {selectedRange.label} · {selectedRange.displayRange}
+        </Text>
 
         {/* 3. Trend section */}
-        {sessions.length === 0 ? (
+        {roleRangeEmptyState.kind !== "none" ? (
           <View
             style={{
               backgroundColor: hex.surface,
               borderRadius: RADIUS.card,
-              padding: 24,
+              padding: 18,
               marginBottom: 16,
               borderWidth: StyleSheet.hairlineWidth,
               borderColor: hex.border,
             }}
           >
-            <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
-              No time in this role for the selected period
-            </Text>
-            <Text
-              style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
-            >
-              Punch in to {role.name} to see stats
-            </Text>
-          </View>
-        ) : activeDaysInPeriod < MIN_ACTIVE_DAYS_FOR_CHART ? (
-          <View
-            style={{
-              backgroundColor: hex.surface,
-              borderRadius: RADIUS.card,
-              padding: 24,
-              marginBottom: 16,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: hex.border,
-            }}
-          >
-            <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
-              Not enough time yet for a {period === '7d' ? 'weekly' : 'monthly'} trend
-            </Text>
-            <Text
-              style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
-            >
-              Punch into this role across a few days to see the pattern
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={{
-              backgroundColor: hex.surface,
-              borderRadius: RADIUS.card,
-              padding: 16,
-              marginBottom: 16,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: hex.border,
-            }}
-          >
-            <BarChart
-              data={barData}
-              parentWidth={chartWidth}
-              adjustToWidth
-              roundedTop
-              roundedBottom
-              maxValue={chartYMax}
-              noOfSections={3}
-              showFractionalValues
-              roundToDigits={2}
-              minHeight={4}
-              height={140}
-              yAxisThickness={0}
-              xAxisThickness={0}
-              yAxisTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
-              hideRules
-              barBorderRadius={6}
-              isAnimated={false}
-            />
-            {period === '30d' && monthlyAxisLabels && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingLeft: 36,
-                  paddingRight: 8,
-                  marginTop: 4,
-                }}
-              >
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.left}</Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.middle}</Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.right}</Text>
-              </View>
+            {roleRangeEmptyState.kind === "noLogsEver" ? (
+              <>
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.body,
+                    color: hex.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  No logs for this role yet
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: hex.textTertiary,
+                    textAlign: "center",
+                    marginTop: 6,
+                  }}
+                >
+                  Punch in to {role.name} to start building history.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.body,
+                    color: hex.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  No time in the {roleRangeEmptyState.rangeLabel}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: hex.textTertiary,
+                    textAlign: "center",
+                    marginTop: 6,
+                  }}
+                >
+                  Last tracked {formatDate(roleRangeEmptyState.lastSessionAt)}
+                </Text>
+                {roleRangeEmptyState.hasOlderHistory && (
+                  <View style={{ marginTop: 8, alignItems: "center" }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: hex.textTertiary,
+                        textAlign: "center",
+                      }}
+                    >
+                      Older history exists.
+                    </Text>
+                    <View
+                      style={{
+                        marginTop: 10,
+                        width: "100%",
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        borderRadius: RADIUS.sm,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: hex.border,
+                        backgroundColor: hex.elevated,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          ...TYPOGRAPHY.metadata,
+                          color: hex.textTertiary,
+                          marginBottom: 4,
+                          textAlign: "center",
+                        }}
+                      >
+                        Lifetime
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: hex.textSecondary,
+                          textAlign: "center",
+                          fontVariant: ["tabular-nums"] as const,
+                        }}
+                      >
+                        {formatDurationShort(lifetimeDurationMs)} ·{" "}
+                        {completedSessionCount} log
+                        {completedSessionCount === 1 ? "" : "s"}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: hex.textTertiary,
+                          textAlign: "center",
+                          marginTop: 4,
+                        }}
+                      >
+                        Last tracked{" "}
+                        {formatDate(roleRangeEmptyState.lastSessionAt)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/(root)/logs?roleId=${id}`)}
+                      style={{
+                        marginTop: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: ACCENT.primary,
+                        }}
+                      >
+                        View {role.name} logs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </View>
+        ) : (
+          <>
+            {chartState.shouldShowChart && (
+              <View
+                style={{
+                  backgroundColor: hex.surface,
+                  borderRadius: RADIUS.card,
+                  padding: 16,
+                  marginBottom: 10,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: hex.border,
+                }}
+              >
+                <BarChart
+                  data={barData}
+                  parentWidth={chartWidth}
+                  adjustToWidth
+                  roundedTop
+                  roundedBottom
+                  maxValue={chartYMax}
+                  noOfSections={3}
+                  showFractionalValues
+                  roundToDigits={2}
+                  minHeight={4}
+                  height={140}
+                  yAxisThickness={0}
+                  xAxisThickness={0}
+                  yAxisTextStyle={{ color: hex.textTertiary, fontSize: 10 }}
+                  xAxisLabelTextStyle={{
+                    color: hex.textTertiary,
+                    fontSize: 10,
+                  }}
+                  hideRules
+                  barBorderRadius={6}
+                  isAnimated={false}
+                />
+                {period === "30d" && monthlyAxisLabels && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingLeft: 36,
+                      paddingRight: 8,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.left}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.middle}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                      {monthlyAxisLabels.right}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+            {!chartState.hasEnoughDataForTrend &&
+              chartState.shouldShowChart && (
+                <View
+                  style={{
+                    backgroundColor: hex.elevated,
+                    borderRadius: RADIUS.card,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    marginBottom: 16,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: hex.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "500",
+                      color: hex.textSecondary,
+                      textAlign: "center",
+                    }}
+                  >
+                    {trendUnavailableCopy.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: hex.textTertiary,
+                      textAlign: "center",
+                      marginTop: 4,
+                    }}
+                  >
+                    {trendUnavailableCopy.body}
+                  </Text>
+                </View>
+              )}
+          </>
         )}
 
         {/* 4. Overview — single card */}
@@ -556,7 +835,9 @@ export default function RoleStatsScreen() {
             >
               Role log
             </Text>
-            {sessionsByDay.length === 0 && !showCorrectionsToggle ? null : sessionsByDay.length === 0 && showCorrectionsToggle ? (
+            {sessionsByDay.length === 0 &&
+            !showCorrectionsToggle ? null : sessionsByDay.length === 0 &&
+              showCorrectionsToggle ? (
               <View style={{ paddingVertical: 12 }}>
                 <Text style={{ fontSize: 14, color: hex.textSecondary }}>
                   All entries are corrections (0m). Toggle below to show.
@@ -565,26 +846,17 @@ export default function RoleStatsScreen() {
             ) : (
               <View style={{ gap: 16 }}>
                 {sessionsByDay.map(({ dateKey, sessions: daySessions }) => {
-                  const dayLabel = (() => {
-                    const iso = daySessions[0]?.startAt ?? '';
-                    const d = new Date(iso);
-                    const today = new Date();
-                    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear())
-                      return 'Today';
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear())
-                      return 'Yesterday';
-                    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                  })();
+                  const dayLabel = formatLocalDayLabel(
+                    daySessions[0]?.startAt ?? dateKey,
+                  );
                   return (
                     <View key={dateKey}>
                       <Text
                         style={{
                           fontSize: 12,
-                          fontWeight: '600',
+                          fontWeight: "600",
                           color: hex.textTertiary,
-                          textTransform: 'uppercase',
+                          textTransform: "uppercase",
                           letterSpacing: 0.4,
                           marginBottom: 6,
                           paddingHorizontal: 2,
@@ -596,7 +868,7 @@ export default function RoleStatsScreen() {
                         style={{
                           backgroundColor: hex.surface,
                           borderRadius: RADIUS.card,
-                          overflow: 'hidden',
+                          overflow: "hidden",
                           borderWidth: StyleSheet.hairlineWidth,
                           borderColor: hex.border,
                         }}
@@ -604,30 +876,45 @@ export default function RoleStatsScreen() {
                         {daySessions.map((s) => {
                           const durationMs =
                             s.durationMs ??
-                            (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : 0);
+                            (s.endAt
+                              ? new Date(s.endAt).getTime() -
+                                new Date(s.startAt).getTime()
+                              : 0);
                           const duration = formatDurationShort(durationMs);
-                          const isLastInDay = daySessions.indexOf(s) === daySessions.length - 1;
-                          const hasNote = s.notes != null && s.notes.trim() !== '';
+                          const isLastInDay =
+                            daySessions.indexOf(s) === daySessions.length - 1;
+                          const hasNote =
+                            s.notes != null && s.notes.trim() !== "";
                           return (
                             <TouchableOpacity
                               key={s.id}
-                              onPress={() =>
-                                openSessionEditor(s.id)
-                              }
+                              onPress={() => openSessionEditor(s.id)}
                               activeOpacity={0.7}
                               style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                paddingVertical: 12,
+                                flexDirection: "row",
+                                alignItems: hasNote ? "flex-start" : "center",
+                                justifyContent: "space-between",
+                                paddingVertical: 11,
                                 paddingHorizontal: 14,
-                                borderBottomWidth: isLastInDay ? 0 : StyleSheet.hairlineWidth,
+                                borderBottomWidth: isLastInDay
+                                  ? 0
+                                  : StyleSheet.hairlineWidth,
                                 borderBottomColor: hex.border,
                               }}
                             >
-                              <View style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
+                              <View
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  marginRight: 12,
+                                }}
+                              >
                                 <Text
-                                  style={{ fontSize: 15, color: hex.text }}
+                                  style={{
+                                    fontSize: 15,
+                                    color: hex.text,
+                                    lineHeight: 20,
+                                  }}
                                   numberOfLines={1}
                                 >
                                   {formatTimeRange(s.startAt, s.endAt)}
@@ -637,7 +924,8 @@ export default function RoleStatsScreen() {
                                     style={{
                                       fontSize: 13,
                                       color: hex.textTertiary,
-                                      marginTop: 2,
+                                      marginTop: 3,
+                                      lineHeight: 18,
                                     }}
                                     numberOfLines={2}
                                   >
@@ -645,18 +933,31 @@ export default function RoleStatsScreen() {
                                   </Text>
                                 )}
                               </View>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  minWidth: 84,
+                                  justifyContent: "flex-end",
+                                }}
+                              >
                                 <Text
                                   style={{
                                     fontSize: 15,
-                                    fontWeight: '600',
+                                    fontWeight: "600",
                                     color: hex.textSecondary,
-                                    fontVariant: ['tabular-nums'] as const,
+                                    fontVariant: ["tabular-nums"] as const,
+                                    textAlign: "right",
                                   }}
                                 >
                                   {duration}
                                 </Text>
-                                <Ionicons name="create-outline" size={18} color={hex.textTertiary} />
+                                <Ionicons
+                                  name="create-outline"
+                                  size={18}
+                                  color={hex.textTertiary}
+                                />
                               </View>
                             </TouchableOpacity>
                           );
@@ -683,8 +984,8 @@ export default function RoleStatsScreen() {
               >
                 <Text style={{ fontSize: 13, color: hex.textTertiary }}>
                   {showCorrections
-                    ? 'Hide corrections'
-                    : `${zeroMinuteSessions.length} correction${zeroMinuteSessions.length === 1 ? '' : 's'} (0m)`}
+                    ? "Hide corrections"
+                    : `${zeroMinuteSessions.length} correction${zeroMinuteSessions.length === 1 ? "" : "s"} (0m)`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -694,4 +995,3 @@ export default function RoleStatsScreen() {
     </EdgeToEdgeScreen>
   );
 }
-

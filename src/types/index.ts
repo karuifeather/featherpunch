@@ -1,5 +1,5 @@
-export type RoleTag = 'me' | 'other';
-export type SessionSource = 'manual' | 'import' | 'edited';
+export type RoleTag = "me" | "other";
+export type SessionSource = "manual" | "import" | "edited";
 
 export interface Role {
   id: string;
@@ -20,6 +20,8 @@ export interface Session {
   startAt: string;
   endAt: string | null;
   durationMs: number | null;
+  hourlyRateSnapshot: number | null;
+  estimatedEarningsSnapshot: number | null;
   source: SessionSource;
   notes: string | null;
   createdAt: string;
@@ -31,7 +33,30 @@ export interface SessionWithRole extends Session {
   roleColor: string;
   roleIcon: string;
   roleTag: RoleTag;
+  roleCurrentHourlyRate: number | null;
   roleHourlyRate: number | null;
+}
+
+export interface SessionLogEntry {
+  id: string;
+  roleId: string;
+  roleName: string;
+  roleColor: string;
+  roleIcon: string;
+  roleHourlyRate?: number | null;
+  estimatedEarnings?: number | null;
+  startAt: string;
+  endAt: string;
+  durationMs: number;
+  notes: string | null;
+}
+
+export interface CompletedSessionLogSummary {
+  roleId: string;
+  completedSessionCount: number;
+  totalDurationMs: number;
+  hourlyRate: number | null;
+  estimatedEarnings: number | null;
 }
 
 export interface ActiveSession {
@@ -44,6 +69,28 @@ export interface ActiveSession {
   startAt: string;
   elapsedMs: number;
 }
+
+export type RoleListSummary = {
+  roleId: string;
+  isActive: boolean;
+  activeStartedAt: string | null;
+  lastCompletedSessionAt: string | null;
+  lifetimeCompletedSessions: number;
+  last7DurationMs: number;
+  last30DurationMs: number;
+  last30CompletedSessions: number;
+};
+
+export type RoleDeletionSafety = {
+  roleId: string;
+  canDeletePermanently: boolean;
+  completedSessionCount: number;
+  openSessionCount: number;
+  totalSessionCount: number;
+  lifetimeDurationMs: number;
+  lastSessionAt: string | null;
+  isActiveRole: boolean;
+};
 
 export interface RoleStat {
   roleId: string;
@@ -73,7 +120,8 @@ export interface AnalyticsSummary {
   roleStats: RoleStat[];
   sessionCount: number;
   avgSessionMs: number;
-  mostFrequentRole: string | null;
+  topRoleByDuration: RoleStat | null;
+  topRoleBySessionCount: RoleStat | null;
   longestSessionMs: number;
   switchesPerDay: number;
 }
@@ -81,12 +129,18 @@ export interface AnalyticsSummary {
 export interface InsightCard {
   id: string;
   text: string;
-  type: 'neutral' | 'positive' | 'reflective' | 'warning';
+  type: "neutral" | "positive" | "reflective" | "warning";
 }
 
 export type AppSettingKey =
-  | 'week_start_day'
-  | 'currency'
-  | 'privacy_lock'
-  | 'export_format'
-  | 'onboarding_completed';
+  | "week_start_day"
+  | "currency"
+  | "privacy_lock"
+  | "export_format"
+  | "onboarding_completed"
+  | "last_engaged_role_id"
+  | "weather_latitude"
+  | "weather_longitude"
+  | "weather_label"
+  | "weather_location_prompted"
+  | "weather_temp_unit";

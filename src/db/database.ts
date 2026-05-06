@@ -1,14 +1,14 @@
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
-const DB_NAME = 'featherpunch.db';
+const DB_NAME = "featherpunch.db";
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
   _db = await SQLite.openDatabaseAsync(DB_NAME);
-  await _db.execAsync('PRAGMA journal_mode = WAL;');
-  await _db.execAsync('PRAGMA foreign_keys = ON;');
+  await _db.execAsync("PRAGMA journal_mode = WAL;");
+  await _db.execAsync("PRAGMA foreign_keys = ON;");
   await runMigrations(_db);
   return _db;
 }
@@ -50,6 +50,24 @@ async function runMigrations(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_sessions_end_at ON sessions(end_at);
     CREATE INDEX IF NOT EXISTS idx_roles_is_archived ON roles(is_archived);
   `);
+  await ensureSessionSnapshotColumns(db);
+}
+
+async function ensureSessionSnapshotColumns(db: SQLite.SQLiteDatabase) {
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(sessions)",
+  );
+  const columnNames = new Set(columns.map((column) => column.name));
+  if (!columnNames.has("hourly_rate_snapshot")) {
+    await db.execAsync(
+      "ALTER TABLE sessions ADD COLUMN hourly_rate_snapshot REAL",
+    );
+  }
+  if (!columnNames.has("estimated_earnings_snapshot")) {
+    await db.execAsync(
+      "ALTER TABLE sessions ADD COLUMN estimated_earnings_snapshot REAL",
+    );
+  }
 }
 
 export async function closeDb() {

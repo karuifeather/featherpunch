@@ -1,6 +1,6 @@
-const { withDangerousMod } = require('expo/config-plugins');
-const fs = require('fs');
-const path = require('path');
+const { withDangerousMod } = require("expo/config-plugins");
+const fs = require("fs");
+const path = require("path");
 
 /**
  * Config plugin to fix white/black flash during Android screen transitions.
@@ -8,15 +8,15 @@ const path = require('path');
  */
 function withAndroidTransitionFix(config) {
   return withDangerousMod(config, [
-    'android',
+    "android",
     async (config) => {
       const projectRoot = config.modRequest.projectRoot;
-      const androidRoot = path.join(projectRoot, 'android');
+      const androidRoot = path.join(projectRoot, "android");
 
-      const drawableDir = path.join(androidRoot, 'app/src/main/res/drawable');
-      const drawableFile = path.join(drawableDir, 'alpha_screen.xml');
-      const valuesDir = path.join(androidRoot, 'app/src/main/res/values');
-      const stylesPath = path.join(valuesDir, 'styles.xml');
+      const drawableDir = path.join(androidRoot, "app/src/main/res/drawable");
+      const drawableFile = path.join(drawableDir, "alpha_screen.xml");
+      const valuesDir = path.join(androidRoot, "app/src/main/res/values");
+      const stylesPath = path.join(valuesDir, "styles.xml");
 
       fs.mkdirSync(drawableDir, { recursive: true });
 
@@ -30,27 +30,32 @@ function withAndroidTransitionFix(config) {
       fs.writeFileSync(drawableFile, alphaScreenXml);
 
       // Inject native nav bar transparency into MainActivity.onCreate
-      const javaDir = path.join(androidRoot, 'app/src/main/java/com/anonymous/featherneko');
-      const mainActivityPath = path.join(javaDir, 'MainActivity.kt');
+      const javaDir = path.join(
+        androidRoot,
+        "app/src/main/java/com/anonymous/featherneko",
+      );
+      const mainActivityPath = path.join(javaDir, "MainActivity.kt");
       if (fs.existsSync(mainActivityPath)) {
-        let mainActivity = fs.readFileSync(mainActivityPath, 'utf8');
-        if (!mainActivity.includes('forceNavBarTransparent')) {
+        let mainActivity = fs.readFileSync(mainActivityPath, "utf8");
+        if (!mainActivity.includes("forceNavBarTransparent")) {
           // Add imports
-          if (!mainActivity.includes('import android.graphics.Color')) {
+          if (!mainActivity.includes("import android.graphics.Color")) {
             mainActivity = mainActivity.replace(
-              'import android.os.Build',
-              'import android.graphics.Color\nimport android.os.Build'
+              "import android.os.Build",
+              "import android.graphics.Color\nimport android.os.Build",
             );
           }
-          if (!mainActivity.includes('import androidx.core.view.WindowCompat')) {
+          if (
+            !mainActivity.includes("import androidx.core.view.WindowCompat")
+          ) {
             mainActivity = mainActivity.replace(
-              'import android.os.Bundle',
-              'import android.os.Bundle\nimport androidx.core.view.WindowCompat\nimport androidx.core.view.WindowInsetsControllerCompat'
+              "import android.os.Bundle",
+              "import android.os.Bundle\nimport androidx.core.view.WindowCompat\nimport androidx.core.view.WindowInsetsControllerCompat",
             );
           }
           // Add forceNavBarTransparent() call + helper + onResume/onWindowFocusChanged overrides
           mainActivity = mainActivity.replace(
-            'super.onCreate(null)',
+            "super.onCreate(null)",
             `super.onCreate(null)
     forceNavBarTransparent()
   }
@@ -72,7 +77,7 @@ function withAndroidTransitionFix(config) {
     }
     WindowCompat.setDecorFitsSystemWindows(window, false)
     // isAppearanceLightNavigationBars set from JS (ThemeAwareSystemBars) so nav bar follows app theme
-    }`
+    }`,
           );
           // Remove the duplicate closing brace from onCreate that we just broke
           // (the original had `super.onCreate(null)\n  }` and we replaced just the first line)
@@ -81,39 +86,53 @@ function withAndroidTransitionFix(config) {
       }
 
       if (fs.existsSync(stylesPath)) {
-        let styles = fs.readFileSync(stylesPath, 'utf8');
+        let styles = fs.readFileSync(stylesPath, "utf8");
         const additions = [];
-        if (!styles.includes('android:windowBackground')) {
-          additions.push('<item name="android:windowBackground">@drawable/alpha_screen</item>');
+        if (!styles.includes("android:windowBackground")) {
+          additions.push(
+            '<item name="android:windowBackground">@drawable/alpha_screen</item>',
+          );
         }
         // Remove deprecated windowTranslucentNavigation — it adds a system scrim on Android 15+
-        if (styles.includes('android:windowTranslucentNavigation')) {
-          styles = styles.replace(/\s*<item name="android:windowTranslucentNavigation">[^<]*<\/item>/, '');
+        if (styles.includes("android:windowTranslucentNavigation")) {
+          styles = styles.replace(
+            /\s*<item name="android:windowTranslucentNavigation">[^<]*<\/item>/,
+            "",
+          );
           modified = true;
         }
         // Set nav bar transparent in XML theme (takes effect before any code runs)
-        if (!styles.includes('android:navigationBarColor')) {
-          additions.push('<item name="android:navigationBarColor">@android:color/transparent</item>');
+        if (!styles.includes("android:navigationBarColor")) {
+          additions.push(
+            '<item name="android:navigationBarColor">@android:color/transparent</item>',
+          );
         }
         // Disable nav bar contrast scrim so translucency works from cold start
         let modified = false;
-        if (styles.includes('android:enforceNavigationBarContrast') && styles.includes('>true<')) {
+        if (
+          styles.includes("android:enforceNavigationBarContrast") &&
+          styles.includes(">true<")
+        ) {
           styles = styles.replace(
             /(<item name="android:enforceNavigationBarContrast"[^>]*>)true/,
-            '$1false'
+            "$1false",
           );
           modified = true;
-        } else if (!styles.includes('android:enforceNavigationBarContrast')) {
-          additions.push('<item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>');
+        } else if (!styles.includes("android:enforceNavigationBarContrast")) {
+          additions.push(
+            '<item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>',
+          );
         }
         // Default: light nav bar icons (app default is dark theme). JS can override when theme changes.
-        if (!styles.includes('android:windowLightNavigationBar')) {
-          additions.push('<item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>');
+        if (!styles.includes("android:windowLightNavigationBar")) {
+          additions.push(
+            '<item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>',
+          );
         }
         if (additions.length > 0) {
           styles = styles.replace(
             /(<style name="AppTheme"[^>]*>)/,
-            `$1\n        ${additions.join('\n        ')}`
+            `$1\n        ${additions.join("\n        ")}`,
           );
           modified = true;
         }

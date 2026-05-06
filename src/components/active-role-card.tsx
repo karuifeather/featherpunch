@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { RoleIcon } from '@/components/role-icon';
-import { RADIUS } from '@/constants/designTokens';
-import { ACCENT } from '@/constants/colors';
-import { formatSinceTime } from '@/utils/formatTime';
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { RoleIcon } from "@/components/role-icon";
+import { RADIUS } from "@/constants/designTokens";
+import { ACCENT } from "@/constants/colors";
+import { formatDurationShort, formatTime } from "@/utils/formatTime";
+import { getActiveElapsedMs } from "@/utils/activeSession";
 
 interface ActiveRoleCardProps {
   roleName: string;
@@ -25,16 +26,45 @@ export function ActiveRoleCard({
   onSwitchRole,
   hex,
 }: ActiveRoleCardProps) {
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    const intervalId = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const activeMs = getActiveElapsedMs(startAt, nowMs);
+  const activeDurationLabel =
+    activeMs < 60_000
+      ? "Less than 1m active"
+      : `${formatDurationShort(activeMs)} active`;
+
   return (
-    <View style={[styles.panel, { backgroundColor: hex.surface }]}>
+    <View
+      style={[
+        styles.panel,
+        {
+          backgroundColor: `${roleColor}14`,
+          borderColor: `${roleColor}3d`,
+        },
+      ]}
+    >
       <View style={[styles.accentStrip, { backgroundColor: roleColor }]} />
       <View style={styles.panelContent}>
         <View style={styles.panelHeader}>
           <RoleIcon icon={roleIcon} color={roleColor} size={14} bgSize={36} />
           <View style={styles.panelTitleBlock}>
-            <Text style={[styles.roleName, { color: hex.text }]}>{roleName}</Text>
+            <Text style={[styles.statusEyebrow, { color: hex.textSecondary }]}>
+              Currently tracking
+            </Text>
+            <Text style={[styles.roleName, { color: hex.text }]}>
+              {roleName}
+            </Text>
+            <Text style={[styles.activeDuration, { color: hex.text }]}>
+              {activeDurationLabel}
+            </Text>
             <Text style={[styles.statusLine, { color: hex.textSecondary }]}>
-              Punched in · {formatSinceTime(startAt)}
+              Started {formatTime(startAt)}
             </Text>
           </View>
         </View>
@@ -54,7 +84,11 @@ export function ActiveRoleCard({
           accessibilityLabel="Switch role"
           accessibilityRole="button"
         >
-          <Text style={[styles.secondaryActionLabel, { color: ACCENT.primary }]}>Switch role</Text>
+          <Text
+            style={[styles.secondaryActionLabel, { color: ACCENT.primary }]}
+          >
+            Switch role
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -64,63 +98,78 @@ export function ActiveRoleCard({
 const styles = StyleSheet.create({
   panel: {
     borderRadius: RADIUS.card,
-    marginBottom: 20,
-    overflow: 'hidden',
+    marginBottom: 12,
+    overflow: "hidden",
+    borderWidth: 1,
   },
   accentStrip: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    width: 2,
-    opacity: 0.4,
+    width: 3,
+    opacity: 0.72,
     borderTopLeftRadius: RADIUS.card,
     borderBottomLeftRadius: RADIUS.card,
   },
   panelContent: {
-    padding: 16,
-    paddingLeft: 18,
+    padding: 15,
+    paddingLeft: 17,
   },
   panelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 13,
+    marginBottom: 11,
   },
   panelTitleBlock: {
     flex: 1,
   },
+  statusEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
   roleName: {
-    fontSize: 17,
-    fontWeight: '600',
-    lineHeight: 22,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24,
+  },
+  activeDuration: {
+    fontSize: 24,
+    fontWeight: "800",
+    lineHeight: 29,
+    marginTop: 6,
+    fontVariant: ["tabular-nums"],
   },
   statusLine: {
     fontSize: 13,
-    fontWeight: '500',
-    marginTop: 2,
+    fontWeight: "500",
+    marginTop: 3,
     opacity: 0.85,
   },
   primaryButton: {
     borderRadius: RADIUS.button,
-    paddingVertical: 12,
+    paddingVertical: 11,
     minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryButtonLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: ACCENT.primaryForeground,
   },
   secondaryAction: {
     marginTop: 8,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingVertical: 6,
     paddingHorizontal: 2,
   },
   secondaryActionLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });

@@ -48,3 +48,5 @@ coverage/
 # Release APK (local build output)
 featherneko.apk
 run.sh
+/docs/architecture/
+.yarn

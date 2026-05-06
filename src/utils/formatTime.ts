@@ -23,7 +23,7 @@ export function formatTime(isoString: string): string {
   const d = new Date(isoString);
   const h = d.getHours();
   const m = d.getMinutes();
-  const period = h >= 12 ? 'PM' : 'AM';
+  const period = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
   return `${h12}:${pad(m)} ${period}`;
 }
@@ -36,19 +36,19 @@ export function formatSinceTime(isoString: string): string {
 export function formatDate(isoString: string): string {
   const d = new Date(isoString);
   return d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
+    weekday: "short",
+    month: "short",
+    day: "numeric",
   });
 }
 
 export function formatDateFull(isoString: string): string {
   const d = new Date(isoString);
   return d.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -74,8 +74,8 @@ export function isYesterday(isoString: string): boolean {
 }
 
 export function getDayLabel(isoString: string): string {
-  if (isToday(isoString)) return 'Today';
-  if (isYesterday(isoString)) return 'Yesterday';
+  if (isToday(isoString)) return "Today";
+  if (isYesterday(isoString)) return "Yesterday";
   return formatDate(isoString);
 }
 
@@ -94,7 +94,7 @@ export function isoFromLocalDateAndMinutes(
   year: number,
   month: number,
   day: number,
-  minutesSinceMidnight: number
+  minutesSinceMidnight: number,
 ): string {
   const h = Math.floor(minutesSinceMidnight / 60);
   const m = minutesSinceMidnight % 60;

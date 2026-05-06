@@ -1,6 +1,6 @@
-import React from 'react';
-import { Modal, View, StyleSheet, Platform } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import React from "react";
+import { Modal, View, StyleSheet, Platform } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface FullScreenModalProps {
   visible: boolean;
@@ -25,7 +25,7 @@ export function FullScreenModal({
       transparent
       animationType="slide"
       onRequestClose={onRequestClose}
-      statusBarTranslucent={Platform.OS === 'android'}
+      statusBarTranslucent={Platform.OS === "android"}
     >
       <View style={[styles.container, { backgroundColor: hex.bg }]}>
         {children}

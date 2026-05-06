@@ -22,26 +22,29 @@ export function TranslucentTabBar(props: BottomTabBarProps) {
   const isAndroid = Platform.OS === "android";
 
   const blurOrSolid =
-    (isAndroid || (isDark && Platform.OS !== "web")) ? (
-    <>
-      <BlurView
-        intensity={80}
-        tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
-        style={StyleSheet.absoluteFill}
-      />
+    isAndroid || (isDark && Platform.OS !== "web") ? (
+      <>
+        <BlurView
+          intensity={80}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: DARK_HEX.translucentOverlay },
+          ]}
+        />
+      </>
+    ) : (
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: DARK_HEX.translucentOverlay },
+          { backgroundColor: themeHex.tabBarBg },
         ]}
       />
-    </>
-  ) : (
-    <View
-      style={[StyleSheet.absoluteFill, { backgroundColor: themeHex.tabBarBg }]}
-    />
-  );
+    );
 
   return (
     <View

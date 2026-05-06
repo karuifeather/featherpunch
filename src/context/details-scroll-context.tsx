@@ -1,12 +1,14 @@
-import React, { createContext, useContext, useRef } from 'react';
-import { Animated } from 'react-native';
+import React, { createContext, useContext } from "react";
+import { Animated } from "react-native";
 
 interface DetailsScrollContextValue {
   scrollY: Animated.Value;
   scrollEventThrottle: number;
 }
 
-const DetailsScrollContext = createContext<DetailsScrollContextValue | null>(null);
+const DetailsScrollContext = createContext<DetailsScrollContextValue | null>(
+  null,
+);
 
 export function DetailsScrollProvider({
   children,
@@ -37,8 +39,7 @@ export function useDetailsScroll() {
  * useNativeDriver: false required for layout properties (height).
  */
 export function useDetailsScrollHandler(scrollY: Animated.Value) {
-  return Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false }
-  );
+  return Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+  });
 }

@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { ACCENT } from '@/constants/colors';
-import { TYPOGRAPHY, RADIUS } from '@/constants/designTokens';
+import React from "react";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import * as Haptics from "expo-haptics";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { ACCENT } from "@/constants/colors";
+import { TYPOGRAPHY, RADIUS } from "@/constants/designTokens";
 
 interface PremiumTabNavProps {
   tabs: string[];
@@ -17,7 +17,7 @@ export function PremiumTabNav({
   activeTab,
   onTabPress,
 }: PremiumTabNavProps) {
-  const { surface, text, textSecondary, hex } = useThemeColors();
+  const { hex } = useThemeColors();
 
   return (
     <View
@@ -47,9 +47,11 @@ export function PremiumTabNav({
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: RADIUS.button,
-                backgroundColor: isActive ? ACCENT.primary : 'rgba(255,255,255,0.06)',
+                backgroundColor: isActive
+                  ? ACCENT.primary
+                  : "rgba(255,255,255,0.06)",
                 minHeight: 36,
-                justifyContent: 'center',
+                justifyContent: "center",
               }}
               accessibilityLabel={`${tab} tab`}
               accessibilityRole="tab"
@@ -59,7 +61,9 @@ export function PremiumTabNav({
                 style={{
                   fontSize: TYPOGRAPHY.pillLabel.fontSize,
                   fontWeight: TYPOGRAPHY.pillLabel.fontWeight,
-                  color: isActive ? ACCENT.primaryForeground : hex.textSecondary,
+                  color: isActive
+                    ? ACCENT.primaryForeground
+                    : hex.textSecondary,
                 }}
               >
                 {tab}

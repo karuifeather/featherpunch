@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { SessionWithRole } from '@/types';
-import { getRecentSessions, getTodaySessions, getSessionsByDateRange } from '@/db/sessions';
+import { useState, useEffect, useCallback } from "react";
+import type { SessionWithRole } from "@/types";
+import {
+  getRecentSessions,
+  getTodaySessions,
+  getSessionsByDateRange,
+} from "@/db/sessions";
 
 export function useRecentSessions(limit = 100) {
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);

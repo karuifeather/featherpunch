@@ -1,6 +1,17 @@
-import type { SessionWithRole, RoleStat, AnalyticsSummary } from '@/types';
+import type { SessionWithRole, RoleStat, AnalyticsSummary } from "@/types";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+} from "@/utils/dateRanges";
+import {
+  formatLocalDayLabel,
+  getLocalDayKey,
+  startOfLocalDay,
+} from "@/utils/localDate";
 
-export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary {
+export function computeAnalytics(
+  sessions: SessionWithRole[],
+): AnalyticsSummary {
   const completed = sessions.filter((s) => s.endAt !== null);
 
   let totalMs = 0;
@@ -8,20 +19,23 @@ export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary 
   let otherMs = 0;
   let longestMs = 0;
 
-  const roleMap = new Map<string, {
-    roleId: string;
-    roleName: string;
-    roleColor: string;
-    roleIcon: string;
-    roleTag: SessionWithRole['roleTag'];
-    totalMs: number;
-    count: number;
-  }>();
+  const roleMap = new Map<
+    string,
+    {
+      roleId: string;
+      roleName: string;
+      roleColor: string;
+      roleIcon: string;
+      roleTag: SessionWithRole["roleTag"];
+      totalMs: number;
+      count: number;
+    }
+  >();
 
   for (const s of completed) {
     const dur = s.durationMs ?? 0;
     totalMs += dur;
-    if (s.roleTag === 'me') meMs += dur;
+    if (s.roleTag === "me") meMs += dur;
     else otherMs += dur;
     if (dur > longestMs) longestMs = dur;
 
@@ -49,10 +63,11 @@ export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary 
       avgSessionMs: r.count > 0 ? r.totalMs / r.count : 0,
     }))
     .sort((a, b) => b.totalMs - a.totalMs);
-
-  const daySet = new Set(
-    completed.map((s) => new Date(s.startAt).toISOString().split('T')[0])
+  const rolesBySessionCount = [...roleStats].sort(
+    (a, b) => b.sessionCount - a.sessionCount || b.totalMs - a.totalMs,
   );
+
+  const daySet = new Set(completed.map((s) => getLocalDayKey(s.startAt)));
   const dayCount = Math.max(daySet.size, 1);
   const switchesPerDay = completed.length / dayCount;
 
@@ -64,52 +79,91 @@ export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary 
     roleStats,
     sessionCount: completed.length,
     avgSessionMs: completed.length > 0 ? totalMs / completed.length : 0,
-    mostFrequentRole: roleStats.length > 0 ? roleStats[0].roleName : null,
+    topRoleByDuration: roleStats[0] ?? null,
+    topRoleBySessionCount: rolesBySessionCount[0] ?? null,
     longestSessionMs: longestMs,
     switchesPerDay: Math.round(switchesPerDay * 10) / 10,
   };
 }
 
-function toLocalDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+export function getPreviousRollingRange(preset: "7d" | "30d" | "90d"): {
+  startIso: string;
+  endExclusiveIso: string;
+} {
+  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90;
+  const currentRange = getRollingRange(
+    preset === "7d"
+      ? "last7Days"
+      : preset === "30d"
+        ? "last30Days"
+        : "last90Days",
+  );
+  const currentBounds = getRollingRangeQueryBounds(currentRange);
+  const previousEndExclusive = new Date(currentBounds.startIso);
+  const previousStart = new Date(previousEndExclusive);
+  previousStart.setDate(previousStart.getDate() - days);
+  return {
+    startIso: previousStart.toISOString(),
+    endExclusiveIso: previousEndExclusive.toISOString(),
+  };
+}
+
+export function formatComparisonDurationCopy(
+  currentMs: number,
+  previousMs: number,
+  label: string,
+): string {
+  if (previousMs === 0 && currentMs === 0)
+    return `No ${label} in either period`;
+  if (previousMs === 0 && currentMs > 0) return "New activity this period";
+  const diff = currentMs - previousMs;
+  const absMs = Math.abs(diff);
+  const sign = diff >= 0 ? "+" : "-";
+  return `${sign}${formatDuration(absMs)} vs previous ${label}`;
+}
+
+function formatDuration(ms: number): string {
+  const totalMin = Math.round(ms / 60000);
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 /** Returns daily time breakdown for charting (value in hours, label for x-axis) */
 export function computeRoleTimeSeries(
   sessions: SessionWithRole[],
-  period: '7d' | '30d'
+  period: "7d" | "30d",
 ): { dateKey: string; totalMs: number; label: string }[] {
   const dayMap = new Map<string, number>();
   const completed = sessions.filter((s) => s.endAt != null);
 
   for (const s of completed) {
-    const dateKey = toLocalDateKey(new Date(s.startAt));
+    // Product policy for now: a cross-midnight session is grouped under its local start day.
+    const dateKey = getLocalDayKey(s.startAt);
     const dur = s.durationMs ?? 0;
     dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + dur);
   }
 
-  const days = period === '7d' ? 7 : 30;
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - days);
+  const rollingRange = getRollingRange(
+    period === "7d" ? "last7Days" : "last30Days",
+  );
+  const bounds = getRollingRangeQueryBounds(rollingRange);
+  const start = new Date(bounds.startIso);
+  const end = new Date(bounds.endExclusiveIso);
 
   const result: { dateKey: string; totalMs: number; label: string }[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfLocalDay(new Date());
   const d = new Date(start);
   while (d < end) {
-    const dateKey = toLocalDateKey(d);
+    const dateKey = getLocalDayKey(d);
     const totalMs = dayMap.get(dateKey) ?? 0;
-    const dayOfMonth = d.getDate();
     const shortLabel =
-      d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-        ? 'Today'
-        : `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${dayOfMonth}`;
+      getLocalDayKey(d) === getLocalDayKey(today)
+        ? "Today"
+        : period === "7d"
+          ? d.toLocaleDateString(undefined, { weekday: "short" })
+          : formatLocalDayLabel(d);
     result.push({ dateKey, totalMs, label: shortLabel });
     d.setDate(d.getDate() + 1);
   }
@@ -126,8 +180,12 @@ export function computeTodaySplit(sessions: SessionWithRole[]): {
   let otherMs = 0;
 
   for (const s of sessions) {
-    const dur = s.durationMs ?? (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : Date.now() - new Date(s.startAt).getTime());
-    if (s.roleTag === 'me') meMs += dur;
+    const dur =
+      s.durationMs ??
+      (s.endAt
+        ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime()
+        : Date.now() - new Date(s.startAt).getTime());
+    if (s.roleTag === "me") meMs += dur;
     else otherMs += dur;
   }
 

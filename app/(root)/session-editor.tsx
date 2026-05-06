@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,36 +6,39 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { DetailOverlayHeader } from '@/components/overlay-header';
-import { RoleIcon } from '@/components/role-icon';
-import { DateTimePickerModal } from '@/components/date-time-picker-modal';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { RADIUS, TYPOGRAPHY, TAG_COLORS } from '@/constants/designTokens';
-import { ACCENT, SEMANTIC } from '@/constants/colors';
-import { getDb } from '@/db/database';
-import { updateSession, deleteSession } from '@/db/sessions';
-import { formatTime, formatDurationShort } from '@/utils/formatTime';
-import type { SessionWithRole } from '@/types';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { DetailOverlayHeader } from "@/components/overlay-header";
+import { RoleIcon } from "@/components/role-icon";
+import { DateTimePickerModal } from "@/components/date-time-picker-modal";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import { ACCENT, SEMANTIC } from "@/constants/colors";
+import { getDb } from "@/db/database";
+import { updateSession, deleteSession } from "@/db/sessions";
+import { formatTime, formatDurationShort } from "@/utils/formatTime";
+import type { SessionWithRole } from "@/types";
 
 export interface SessionEditorContentProps {
   id: string;
   onClose: () => void;
 }
 
-export function SessionEditorContent({ id, onClose }: SessionEditorContentProps) {
+export function SessionEditorContent({
+  id,
+  onClose,
+}: SessionEditorContentProps) {
   const insets = useSafeAreaInsets();
-  const { hex, bg } = useThemeColors();
+  const { hex } = useThemeColors();
 
   const [session, setSession] = useState<SessionWithRole | null>(null);
-  const [startAt, setStartAt] = useState('');
+  const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
-  const [pickerMode, setPickerMode] = useState<'start' | 'end' | null>(null);
+  const [pickerMode, setPickerMode] = useState<"start" | "end" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
         FROM sessions s
         JOIN roles r ON s.role_id = r.id
         WHERE s.id = ?`,
-        [id]
+        [id],
       );
       if (row) {
         const r = row as Record<string, unknown>;
@@ -62,20 +65,27 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
           startAt: r.start_at as string,
           endAt: (r.end_at as string) || null,
           durationMs: r.duration_ms as number | null,
-          source: r.source as SessionWithRole['source'],
+          hourlyRateSnapshot: (r.hourly_rate_snapshot as number) ?? null,
+          estimatedEarningsSnapshot:
+            (r.estimated_earnings_snapshot as number) ?? null,
+          source: r.source as SessionWithRole["source"],
           notes: (r.notes as string) || null,
           createdAt: r.created_at as string,
           updatedAt: r.updated_at as string,
           roleName: r.role_name as string,
           roleColor: r.role_color as string,
           roleIcon: r.role_icon as string,
-          roleTag: r.role_tag as SessionWithRole['roleTag'],
-          roleHourlyRate: r.role_hourly_rate as number | null,
+          roleTag: r.role_tag as SessionWithRole["roleTag"],
+          roleCurrentHourlyRate: r.role_hourly_rate as number | null,
+          roleHourlyRate:
+            (r.hourly_rate_snapshot as number) ??
+            null ??
+            (r.role_hourly_rate as number | null),
         };
         setSession(s);
         setStartAt(s.startAt);
         setEndAt(s.endAt);
-        setNotes(s.notes || '');
+        setNotes(s.notes || "");
       }
       setLoading(false);
     })();
@@ -88,13 +98,17 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
     if (s && e && new Date(e).getTime() < new Date(s).getTime()) {
       [s, e] = [e, s];
     }
-    const payload: { startAt: string; endAt?: string | null; notes: string | null } = {
+    const payload: {
+      startAt: string;
+      endAt?: string | null;
+      notes: string | null;
+    } = {
       startAt: s,
       notes: notes || null,
     };
-    if (session.endAt != null && session.endAt !== '') {
+    if (session.endAt != null && session.endAt !== "") {
       payload.endAt = e ?? session.endAt;
-    } else if (e != null && e !== '') {
+    } else if (e != null && e !== "") {
       payload.endAt = e;
     }
     await updateSession(session.id, payload);
@@ -127,8 +141,8 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
     durationMs != null && durationMs >= 0
       ? formatDurationShort(durationMs)
       : isActive
-        ? 'Active'
-        : '—';
+        ? "Active"
+        : "—";
 
   return (
     <View style={[styles.container, { backgroundColor: hex.bg }]}>
@@ -146,36 +160,34 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             borderRadius: RADIUS.card,
             padding: 20,
             marginBottom: 20,
-            alignItems: 'center',
+            alignItems: "center",
           }}
         >
-          <RoleIcon icon={session.roleIcon} color={session.roleColor} size={24} bgSize={56} />
-          <Text style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text, marginTop: 10 }}>
-            {session.roleName}
-          </Text>
-          <Text style={{ fontSize: 28, fontWeight: '200', color: hex.text, marginTop: 4 }}>
-            {duration}
-          </Text>
-          <View
+          <RoleIcon
+            icon={session.roleIcon}
+            color={session.roleColor}
+            size={24}
+            bgSize={56}
+          />
+          <Text
             style={{
+              ...TYPOGRAPHY.sectionTitle,
+              color: hex.text,
               marginTop: 10,
-              paddingHorizontal: 10,
-              paddingVertical: 3,
-              borderRadius: RADIUS.pill,
-              backgroundColor: `${TAG_COLORS[session.roleTag]}20`,
             }}
           >
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: TAG_COLORS[session.roleTag],
-                textTransform: 'uppercase',
-              }}
-            >
-              {session.roleTag === 'me' ? 'For me' : 'For others'}
-            </Text>
-          </View>
+            {session.roleName}
+          </Text>
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: "200",
+              color: hex.text,
+              marginTop: 4,
+            }}
+          >
+            {duration}
+          </Text>
         </View>
 
         <View
@@ -184,15 +196,15 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             borderRadius: RADIUS.card,
             paddingHorizontal: 16,
             marginBottom: 20,
-            overflow: 'hidden',
+            overflow: "hidden",
           }}
         >
           <Text
             style={{
               fontSize: 11,
-              fontWeight: '600',
+              fontWeight: "600",
               letterSpacing: 0.6,
-              textTransform: 'uppercase',
+              textTransform: "uppercase",
               color: hex.textTertiary,
               marginTop: 14,
               marginBottom: 8,
@@ -201,47 +213,64 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             Log
           </Text>
           <TouchableOpacity
-            onPress={() => setPickerMode('start')}
+            onPress={() => setPickerMode("start")}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
               paddingVertical: 12,
               borderBottomWidth: StyleSheet.hairlineWidth,
               borderBottomColor: hex.border,
             }}
           >
-            <Text style={{ fontSize: 14, color: hex.textSecondary }}>Start</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: hex.text }}>
-                {startAt ? formatTime(startAt) : '—'}
+            <Text style={{ fontSize: 14, color: hex.textSecondary }}>
+              Start
+            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text
+                style={{ fontSize: 15, fontWeight: "600", color: hex.text }}
+              >
+                {startAt ? formatTime(startAt) : "—"}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color={hex.textTertiary} />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={hex.textTertiary}
+              />
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setPickerMode('end')}
+            onPress={() => setPickerMode("end")}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
               paddingVertical: 12,
             }}
           >
             <Text style={{ fontSize: 14, color: hex.textSecondary }}>End</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
               <Text
                 style={{
                   fontSize: 15,
-                  fontWeight: '600',
-                  color: endAt == null || endAt === '' ? hex.textTertiary : hex.text,
+                  fontWeight: "600",
+                  color:
+                    endAt == null || endAt === "" ? hex.textTertiary : hex.text,
                 }}
               >
-                {endAt != null && endAt !== ''
+                {endAt != null && endAt !== ""
                   ? formatTime(endAt)
-                  : 'No end time'}
+                  : "No end time"}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color={hex.textTertiary} />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={hex.textTertiary}
+              />
             </View>
           </TouchableOpacity>
         </View>
@@ -251,7 +280,7 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             ...TYPOGRAPHY.metadata,
             color: hex.textTertiary,
             marginBottom: 6,
-            textTransform: 'uppercase',
+            textTransform: "uppercase",
             letterSpacing: 0.8,
           }}
         >
@@ -270,7 +299,7 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             fontSize: 15,
             color: hex.text,
             minHeight: 80,
-            textAlignVertical: 'top',
+            textAlignVertical: "top",
             marginBottom: 24,
           }}
         />
@@ -281,10 +310,16 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
             backgroundColor: ACCENT.primary,
             borderRadius: RADIUS.button,
             paddingVertical: 14,
-            alignItems: 'center',
+            alignItems: "center",
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '600', color: ACCENT.primaryForeground }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: ACCENT.primaryForeground,
+            }}
+          >
             Save
           </Text>
         </TouchableOpacity>
@@ -294,20 +329,26 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
           style={{
             marginTop: 16,
             paddingVertical: 14,
-            alignItems: 'center',
+            alignItems: "center",
             borderRadius: RADIUS.button,
             borderWidth: 1,
             borderColor: `${SEMANTIC.destructive}40`,
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '600', color: SEMANTIC.destructive }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: SEMANTIC.destructive,
+            }}
+          >
             Delete role entry
           </Text>
         </TouchableOpacity>
       </ScrollView>
 
       <DateTimePickerModal
-        visible={pickerMode === 'start'}
+        visible={pickerMode === "start"}
         onClose={() => setPickerMode(null)}
         initialIso={startAt}
         onSelect={(iso) => setStartAt(iso)}
@@ -315,7 +356,7 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
         timeOnly
       />
       <DateTimePickerModal
-        visible={pickerMode === 'end'}
+        visible={pickerMode === "end"}
         onClose={() => setPickerMode(null)}
         initialIso={endAt ?? startAt ?? new Date().toISOString()}
         onSelect={(iso) => setEndAt(iso)}
@@ -349,6 +390,10 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
       />
     </View>
   );
+}
+
+export default function SessionEditorRoute() {
+  return null;
 }
 
 const styles = StyleSheet.create({

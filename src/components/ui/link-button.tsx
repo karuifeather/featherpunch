@@ -1,6 +1,6 @@
-import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import React from "react";
+import { TouchableOpacity, Text } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 type LinkButtonProps = {
   label: string;
@@ -24,7 +24,7 @@ export function LinkButton({ label, onPress, ariaLabel }: LinkButtonProps) {
         className={textSecondary}
         style={{
           fontSize: 13,
-          fontWeight: '600',
+          fontWeight: "600",
           letterSpacing: 0.2,
         }}
       >

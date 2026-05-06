@@ -1,14 +1,14 @@
-import React, { useEffect, useRef } from 'react';
-import { Image, View, Animated, StyleSheet } from 'react-native';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faImage } from '@fortawesome/free-solid-svg-icons';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import React, { useEffect, useRef } from "react";
+import { Image, View, Animated, StyleSheet } from "react-native";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faImage } from "@fortawesome/free-solid-svg-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ImageWithFallbackProps {
   source: { uri: string } | number;
   className?: string;
   style?: object;
-  resizeMode?: 'cover' | 'contain' | 'stretch';
+  resizeMode?: "cover" | "contain" | "stretch";
   accessibilityLabel?: string;
   /** Fade-in duration (ms). 0 = no animation */
   fadeInDuration?: number;
@@ -17,9 +17,9 @@ interface ImageWithFallbackProps {
 /** Image with fallback placeholder and optional fade-in */
 export function ImageWithFallback({
   source,
-  className = '',
+  className = "",
   style = {},
-  resizeMode = 'cover',
+  resizeMode = "cover",
   accessibilityLabel,
   fadeInDuration = 280,
 }: ImageWithFallbackProps) {
@@ -47,8 +47,8 @@ export function ImageWithFallback({
         style={[
           {
             backgroundColor: hex.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: "center",
+            justifyContent: "center",
           },
           style,
         ]}
@@ -59,18 +59,16 @@ export function ImageWithFallback({
     );
   }
 
-  const flatStyle = StyleSheet.flatten(style) || {};
-
   return (
-    <View style={[style, { overflow: 'hidden' }]}>
+    <View style={[style, { overflow: "hidden" }]}>
       {!loaded && (
         <View
           style={[
             StyleSheet.absoluteFill,
             {
               backgroundColor: hex.skeletonBase,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             },
           ]}
         >
@@ -78,10 +76,7 @@ export function ImageWithFallback({
         </View>
       )}
       <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { opacity: loaded ? opacity : 0 },
-        ]}
+        style={[StyleSheet.absoluteFill, { opacity: loaded ? opacity : 0 }]}
       >
         <Image
           source={source}

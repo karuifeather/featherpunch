@@ -1,11 +1,13 @@
-import { create } from 'zustand';
-import type { ActiveSession, SessionWithRole } from '@/types';
-import * as sessionsDb from '@/db/sessions';
+import { create } from "zustand";
+import type { ActiveSession, SessionWithRole } from "@/types";
+import * as sessionsDb from "@/db/sessions";
+import { setSetting } from "@/db/settings";
 
 interface SessionStore {
   active: ActiveSession | null;
-  isLoading: boolean;
+  isHydratingActiveSession: boolean;
 
+  hydrateActiveSessionFromDatabase: () => Promise<void>;
   loadActiveSession: () => Promise<void>;
   clockIn: (roleId: string) => Promise<void>;
   clockOut: () => Promise<void>;
@@ -29,15 +31,19 @@ function sessionWithRoleToActive(s: SessionWithRole): ActiveSession {
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   active: null,
-  isLoading: true,
+  isHydratingActiveSession: true,
 
-  loadActiveSession: async () => {
-    set({ isLoading: true });
+  hydrateActiveSessionFromDatabase: async () => {
+    set({ isHydratingActiveSession: true });
     const session = await sessionsDb.getActiveSession();
     set({
       active: session ? sessionWithRoleToActive(session) : null,
-      isLoading: false,
+      isHydratingActiveSession: false,
     });
+  },
+  // Backward-compatible alias for existing callers.
+  loadActiveSession: async () => {
+    await get().hydrateActiveSessionFromDatabase();
   },
 
   clockIn: async (roleId: string) => {
@@ -46,6 +52,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await sessionsDb.endSession(active.sessionId);
     }
     await sessionsDb.startSession(roleId);
+    await setSetting("last_engaged_role_id", roleId);
     const newActive = await sessionsDb.getActiveSession();
     set({
       active: newActive ? sessionWithRoleToActive(newActive) : null,
@@ -56,6 +63,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { active } = get();
     if (!active) return;
     await sessionsDb.endSession(active.sessionId);
+    await setSetting("last_engaged_role_id", active.roleId);
     set({ active: null });
   },
 
@@ -63,6 +71,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { active } = get();
     if (!active) return;
     await sessionsDb.switchSession(active.sessionId, newRoleId);
+    await setSetting("last_engaged_role_id", newRoleId);
     const newActive = await sessionsDb.getActiveSession();
     set({
       active: newActive ? sessionWithRoleToActive(newActive) : null,
@@ -80,5 +89,5 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     });
   },
 
-  clear: () => set({ active: null, isLoading: true }),
+  clear: () => set({ active: null, isHydratingActiveSession: false }),
 }));
