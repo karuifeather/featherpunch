@@ -1,6 +1,5 @@
-# Build Android APK. Uses Expo prebuild + Gradle; signs with debug keystore.
-# This project has no .env; no env file step required.
-name: Build Android APK
+# Build Android release artifacts (APK + AAB) and optionally upload to Google Play.
+name: Build Android Release
 
 on:
   push:
@@ -52,29 +51,44 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Create debug keystore for release signing
+      - name: Configure release keystore from secrets
         run: |
-          rm -f android/app/debug.keystore
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore android/app/debug.keystore \
-            -storepass android -alias androiddebugkey -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+            {
+              echo "MYAPP_UPLOAD_STORE_FILE=release.keystore"
+              echo "MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}"
+              echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}"
+              echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}"
+            } >> android/gradle.properties
+          else
+            echo "No release keystore secrets found; falling back to generated debug keystore."
+            rm -f android/app/debug.keystore
+            keytool -genkeypair -v -storetype PKCS12 \
+              -keystore android/app/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Set SDK path for Gradle
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
-      - name: Build release APK
-        run: cd android && ./gradlew assembleRelease --no-daemon
+      - name: Build release APK and AAB
+        run: cd android && ./gradlew assembleRelease bundleRelease --no-daemon
 
-      - name: Copy APK for artifact
-        run: cp android/app/build/outputs/apk/release/app-release.apk app.apk
+      - name: Copy release artifacts
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk app-release.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab app-release.aab
 
-      - name: Upload APK artifact
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: app.apk
+          name: android-release-files
+          path: |
+            app-release.apk
+            app-release.aab
 
   release:
     needs: build
@@ -86,15 +100,38 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: android-apk
+          name: android-release-files
 
-      - name: Rename APK with version
-        run: mv app.apk featherpunch-v${GITHUB_REF#refs/tags/v}.apk
+      - name: Rename artifacts with version
+        run: |
+          mv app-release.apk featherpunch-v${GITHUB_REF#refs/tags/v}.apk
+          mv app-release.aab featherpunch-v${GITHUB_REF#refs/tags/v}.aab
 
-      - name: Create GitHub Release and upload APK
+      - name: Create GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v2
         with:
-          files: featherpunch-v*.apk
+          files: |
+            featherpunch-v*.apk
+            featherpunch-v*.aab
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  playstore:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release-files
+
+      - name: Upload to Google Play (internal)
+        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.featherpunch.app
+          releaseFiles: app-release.aab
+          track: internal
