@@ -417,3 +417,7 @@ export function RoleEditorContent({ id, onClose }: RoleEditorContentProps) {
     </View>
   );
 }
+
+export default function RoleEditorRoute() {
+  return null;
+}

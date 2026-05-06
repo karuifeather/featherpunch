@@ -1,7 +1,11 @@
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Scrim, SCRIM_TOP_HEIGHT, SCRIM_BOTTOM_HEIGHT } from '@/components/ui/scrim';
-import type { ScrimVariant } from '@/components/ui/scrim';
+import { View, StyleSheet, ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Scrim,
+  SCRIM_TOP_HEIGHT,
+  SCRIM_BOTTOM_HEIGHT,
+} from "@/components/ui/scrim";
+import type { ScrimVariant } from "@/components/ui/scrim";
 
 export interface ScreenContainerProps {
   children: React.ReactNode;
@@ -42,17 +46,19 @@ export function ScreenContainer({
   const paddingTop = includeTopInset ? insets.top : 0;
   const paddingBottom = includeBottomInset ? insets.bottom : 0;
 
-  const topScrimVariant = topScrim === true ? 'default' : topScrim === false ? undefined : topScrim;
-  const bottomScrimVariant = bottomScrim === true ? 'default' : bottomScrim === false ? undefined : bottomScrim;
+  const topScrimVariant =
+    topScrim === true ? "default" : topScrim === false ? undefined : topScrim;
+  const bottomScrimVariant =
+    bottomScrim === true
+      ? "default"
+      : bottomScrim === false
+        ? undefined
+        : bottomScrim;
 
   return (
     <View style={[styles.outer, style]}>
       <View
-        style={[
-          styles.content,
-          { paddingTop, paddingBottom },
-          contentStyle,
-        ]}
+        style={[styles.content, { paddingTop, paddingBottom }, contentStyle]}
       >
         {children}
       </View>

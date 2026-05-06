@@ -1,6 +1,6 @@
-const { withDangerousMod } = require('expo/config-plugins');
-const fs = require('fs');
-const path = require('path');
+const { withDangerousMod } = require("expo/config-plugins");
+const fs = require("fs");
+const path = require("path");
 
 const IMMERSIVE_MODULE_KOTLIN = `package com.anonymous.featherneko
 
@@ -88,33 +88,33 @@ class ImmersiveModePackage : ReactPackage {
 
 function withImmersiveMode(config) {
   return withDangerousMod(config, [
-    'android',
+    "android",
     async (config) => {
       const projectRoot = config.modRequest.projectRoot;
-      const androidRoot = path.join(projectRoot, 'android');
+      const androidRoot = path.join(projectRoot, "android");
       const javaDir = path.join(
         androidRoot,
-        'app/src/main/java/com/anonymous/featherneko'
+        "app/src/main/java/com/anonymous/featherneko",
       );
-      const mainAppPath = path.join(javaDir, 'MainApplication.kt');
+      const mainAppPath = path.join(javaDir, "MainApplication.kt");
 
       fs.mkdirSync(javaDir, { recursive: true });
 
       fs.writeFileSync(
-        path.join(javaDir, 'ImmersiveModeModule.kt'),
-        IMMERSIVE_MODULE_KOTLIN
+        path.join(javaDir, "ImmersiveModeModule.kt"),
+        IMMERSIVE_MODULE_KOTLIN,
       );
       fs.writeFileSync(
-        path.join(javaDir, 'ImmersiveModePackage.kt'),
-        IMMERSIVE_PACKAGE_KOTLIN
+        path.join(javaDir, "ImmersiveModePackage.kt"),
+        IMMERSIVE_PACKAGE_KOTLIN,
       );
 
       if (fs.existsSync(mainAppPath)) {
-        let mainApp = fs.readFileSync(mainAppPath, 'utf8');
-        if (!mainApp.includes('ImmersiveModePackage')) {
+        let mainApp = fs.readFileSync(mainAppPath, "utf8");
+        if (!mainApp.includes("ImmersiveModePackage")) {
           mainApp = mainApp.replace(
-            '// Packages that cannot be autolinked yet can be added manually here, for example:\n              // add(MyReactNativePackage())',
-            '// Packages that cannot be autolinked yet can be added manually here, for example:\n              add(ImmersiveModePackage())'
+            "// Packages that cannot be autolinked yet can be added manually here, for example:\n              // add(MyReactNativePackage())",
+            "// Packages that cannot be autolinked yet can be added manually here, for example:\n              add(ImmersiveModePackage())",
           );
           fs.writeFileSync(mainAppPath, mainApp);
         }

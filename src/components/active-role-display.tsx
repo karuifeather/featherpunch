@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatSinceTime } from '@/utils/formatTime';
-import { TYPOGRAPHY } from '@/constants/designTokens';
+import React from "react";
+import { View, Text } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { formatSinceTime } from "@/utils/formatTime";
+import { TYPOGRAPHY } from "@/constants/designTokens";
 
 interface ActiveRoleDisplayProps {
   startAt: string;
@@ -13,21 +13,16 @@ interface ActiveRoleDisplayProps {
 }
 
 /** Status display when punched in. No running timer — calm, professional. */
-export function ActiveRoleDisplay({
-  startAt,
-  color,
-  roleName,
-  roleIcon,
-  isActive,
-}: ActiveRoleDisplayProps) {
+export function ActiveRoleDisplay(props: ActiveRoleDisplayProps) {
+  const { startAt, color, roleName } = props;
   const { hex } = useThemeColors();
 
   return (
     <View
-      style={{ alignItems: 'center', gap: 12 }}
+      style={{ alignItems: "center", gap: 12 }}
       accessibilityLabel={`Punched in to ${roleName}. ${formatSinceTime(startAt)}`}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <View
           style={{
             width: 10,
@@ -39,7 +34,7 @@ export function ActiveRoleDisplay({
         <Text
           style={{
             fontSize: 18,
-            fontWeight: '600',
+            fontWeight: "600",
             color: hex.text,
           }}
         >
@@ -57,7 +52,7 @@ export function ActiveRoleDisplay({
       <Text
         style={{
           fontSize: 15,
-          fontWeight: '500',
+          fontWeight: "500",
           color: hex.text,
         }}
       >

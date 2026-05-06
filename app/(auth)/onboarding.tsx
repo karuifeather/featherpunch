@@ -1,20 +1,28 @@
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import {
-  View, Text, FlatList, Pressable, Animated, Dimensions,
-  NativeSyntheticEvent, NativeScrollEvent,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  Animated,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import {
-  faUserClock, faChartPie, faHeart,
+  faUserClock,
+  faChartPie,
+  faHeart,
   type IconDefinition,
-} from '@fortawesome/free-solid-svg-icons';
-import { useRef, useState } from 'react';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { setSetting } from '@/db/settings';
-import { BRAND } from '@/constants/colors';
+} from "@fortawesome/free-solid-svg-icons";
+import { useRef, useState } from "react";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { setSetting } from "@/db/settings";
+import { BRAND } from "@/constants/colors";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 interface Slide {
   id: string;
@@ -25,21 +33,24 @@ interface Slide {
 
 const slides: Slide[] = [
   {
-    id: '1',
-    title: 'Punch into your roles',
-    description: 'Sleeper, builder, student, friend — live the roles you care about and see where your time goes.',
+    id: "1",
+    title: "Punch into your roles",
+    description:
+      "Sleeper, builder, student, friend — live the roles you care about and see where your time goes.",
     icon: faUserClock,
   },
   {
-    id: '2',
-    title: 'See where life goes',
-    description: 'Charts and insights show how much of your time belongs to you.',
+    id: "2",
+    title: "See where life goes",
+    description:
+      "Charts and insights show how much of your time belongs to you.",
     icon: faChartPie,
   },
   {
-    id: '3',
-    title: 'Reflective, not pushy',
-    description: 'No hustle culture. No streak pressure. Just a calm, private mirror for your life.',
+    id: "3",
+    title: "Reflective, not pushy",
+    description:
+      "No hustle culture. No streak pressure. Just a calm, private mirror for your life.",
     icon: faHeart,
   },
 ];
@@ -54,7 +65,7 @@ export default function OnboardingScreen() {
 
   const handleScroll = Animated.event<NativeSyntheticEvent<NativeScrollEvent>>(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    { useNativeDriver: false }
+    { useNativeDriver: false },
   );
 
   const handleViewableItemsChanged = ({
@@ -70,8 +81,8 @@ export default function OnboardingScreen() {
   const viewabilityConfig = { itemVisiblePercentThreshold: 50 };
 
   const finishOnboarding = async () => {
-    await setSetting('onboarding_completed', '1');
-    router.replace('/(root)/(tabs)/home');
+    await setSetting("onboarding_completed", "1");
+    router.replace("/(root)/(tabs)/home");
   };
 
   const goToNext = () => {
@@ -110,12 +121,20 @@ export default function OnboardingScreen() {
               className="w-28 h-28 rounded-3xl items-center justify-center mb-8"
               style={{ backgroundColor: `${BRAND.primary}18` }}
             >
-              <FontAwesomeIcon icon={item.icon} size={44} color={BRAND.primary} />
+              <FontAwesomeIcon
+                icon={item.icon}
+                size={44}
+                color={BRAND.primary}
+              />
             </View>
-            <Text className={`${text} text-2xl font-bold text-center max-w-[280px]`}>
+            <Text
+              className={`${text} text-2xl font-bold text-center max-w-[280px]`}
+            >
               {item.title}
             </Text>
-            <Text className={`${subtext} text-base text-center mt-3 max-w-[300px] leading-6`}>
+            <Text
+              className={`${subtext} text-base text-center mt-3 max-w-[300px] leading-6`}
+            >
               {item.description}
             </Text>
           </View>
@@ -158,7 +177,7 @@ export default function OnboardingScreen() {
           style={{ backgroundColor: BRAND.primary, minHeight: 48 }}
         >
           <Text className="text-base font-semibold text-white">
-            {currentIndex === slides.length - 1 ? 'Start' : 'Next'}
+            {currentIndex === slides.length - 1 ? "Start" : "Next"}
           </Text>
         </Pressable>
       </View>

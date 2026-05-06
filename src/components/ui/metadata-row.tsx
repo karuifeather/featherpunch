@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { TYPOGRAPHY } from '@/constants/designTokens';
+import React from "react";
+import { View, Text } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { TYPOGRAPHY } from "@/constants/designTokens";
 
 interface MetadataRowProps {
   label: string;
@@ -12,16 +12,21 @@ interface MetadataRowProps {
 }
 
 /** Compact metadata row for score, episodes, status, etc. */
-export function MetadataRow({ label, value, hideBorder, compact }: MetadataRowProps) {
+export function MetadataRow({
+  label,
+  value,
+  hideBorder,
+  compact,
+}: MetadataRowProps) {
   const { hex } = useThemeColors();
   const py = compact ? 5 : 8;
 
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         paddingVertical: py,
         borderBottomWidth: hideBorder ? 0 : 1,
         borderBottomColor: hex.border,
@@ -29,7 +34,9 @@ export function MetadataRow({ label, value, hideBorder, compact }: MetadataRowPr
     >
       <Text
         style={{
-          fontSize: compact ? TYPOGRAPHY.caption.fontSize : TYPOGRAPHY.metadata.fontSize,
+          fontSize: compact
+            ? TYPOGRAPHY.caption.fontSize
+            : TYPOGRAPHY.metadata.fontSize,
           fontWeight: TYPOGRAPHY.metadata.fontWeight,
           color: hex.textSecondary,
         }}
@@ -38,12 +45,14 @@ export function MetadataRow({ label, value, hideBorder, compact }: MetadataRowPr
       </Text>
       <Text
         style={{
-          fontSize: compact ? TYPOGRAPHY.caption.fontSize : TYPOGRAPHY.metadata.fontSize,
-          fontWeight: '600',
+          fontSize: compact
+            ? TYPOGRAPHY.caption.fontSize
+            : TYPOGRAPHY.metadata.fontSize,
+          fontWeight: "600",
           color: hex.text,
         }}
       >
-        {typeof value === 'number' ? value.toLocaleString() : value}
+        {typeof value === "number" ? value.toLocaleString() : value}
       </Text>
     </View>
   );
@@ -52,12 +61,12 @@ export function MetadataRow({ label, value, hideBorder, compact }: MetadataRowPr
 /** Compact inline metadata chips (e.g. "TV · 12 eps · 2024") */
 export function MetadataChips({ items }: { items: (string | number)[] }) {
   const { hex } = useThemeColors();
-  const filtered = items.filter((x) => x != null && x !== '');
+  const filtered = items.filter((x) => x != null && x !== "");
 
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
       {filtered.map((item, i) => (
-        <View key={i} style={{ flexDirection: 'row' }}>
+        <View key={i} style={{ flexDirection: "row" }}>
           {i > 0 && (
             <Text
               style={{
@@ -75,7 +84,7 @@ export function MetadataChips({ items }: { items: (string | number)[] }) {
               color: hex.textSecondary,
             }}
           >
-            {typeof item === 'number' ? item : String(item)}
+            {typeof item === "number" ? item : String(item)}
           </Text>
         </View>
       ))}

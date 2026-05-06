@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { OVERLAY_HEADER_CONTENT_HEIGHT } from '@/components/overlay-header';
+import { useMemo } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OVERLAY_HEADER_CONTENT_HEIGHT } from "@/components/overlay-header";
 
 /** Base height of the tab bar (icons + padding), before adding bottom safe inset. */
 export const TAB_BAR_BASE_HEIGHT = 56;
@@ -23,6 +23,6 @@ export function useEdgeToEdgeInsets() {
       /** Header content height only (minus status bar). */
       overlayHeaderRowHeight: OVERLAY_HEADER_CONTENT_HEIGHT,
     }),
-    [insets.top, insets.bottom, insets.left, insets.right]
+    [insets.top, insets.bottom, insets.left, insets.right],
   );
 }

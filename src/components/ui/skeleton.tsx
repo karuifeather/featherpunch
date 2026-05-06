@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { View, Animated, Dimensions } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import React, { useEffect } from "react";
+import { View, Animated, Dimensions } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface SkeletonProps {
   width?: number | string;
@@ -12,10 +12,10 @@ interface SkeletonProps {
 
 /** Single shimmer block */
 export function Skeleton({
-  width = '100%',
+  width = "100%",
   height = 20,
   borderRadius = 6,
-  className = '',
+  className = "",
   style,
 }: SkeletonProps) {
   const { hex } = useThemeColors();
@@ -34,7 +34,7 @@ export function Skeleton({
           duration: 1200,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     anim.start();
     return () => anim.stop();
@@ -50,11 +50,11 @@ export function Skeleton({
       className={className}
       style={[
         {
-          width: typeof width === 'string' ? width : width,
-          height: typeof height === 'number' ? height : 20,
+          width: typeof width === "string" ? width : width,
+          height: typeof height === "number" ? height : 20,
           borderRadius,
           backgroundColor: hex.skeletonBase,
-          overflow: 'hidden',
+          overflow: "hidden",
         },
         style,
       ]}
@@ -73,18 +73,21 @@ export function Skeleton({
 
 /** Hero skeleton — matches hero layout */
 export function HeroSkeleton() {
-  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  const { width: SCREEN_WIDTH } = Dimensions.get("window");
   const heroWidth = SCREEN_WIDTH * 0.9;
   const heroHeight = 220;
 
   return (
-    <View style={{ marginBottom: 24, alignItems: 'center' }}>
-      <Skeleton
-        width={heroWidth}
-        height={heroHeight}
-        borderRadius={14}
-      />
-      <View style={{ flexDirection: 'row', gap: 6, marginTop: 12, justifyContent: 'center' }}>
+    <View style={{ marginBottom: 24, alignItems: "center" }}>
+      <Skeleton width={heroWidth} height={heroHeight} borderRadius={14} />
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 6,
+          marginTop: 12,
+          justifyContent: "center",
+        }}
+      >
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} width={8} height={8} borderRadius={4} />
         ))}
@@ -94,7 +97,13 @@ export function HeroSkeleton() {
 }
 
 /** Poster card skeleton — for shelves */
-export function PosterSkeleton({ width = 128, height = 192 }: { width?: number; height?: number }) {
+export function PosterSkeleton({
+  width = 128,
+  height = 192,
+}: {
+  width?: number;
+  height?: number;
+}) {
   return (
     <View style={{ width, marginRight: 14 }}>
       <Skeleton width={width} height={height} borderRadius={10} />
@@ -108,12 +117,24 @@ export function PosterSkeleton({ width = 128, height = 192 }: { width?: number; 
 /** Search result card skeleton */
 export function SearchResultSkeleton() {
   return (
-    <View style={{ flexDirection: 'row', padding: 12, marginBottom: 10, gap: 12 }}>
+    <View
+      style={{ flexDirection: "row", padding: 12, marginBottom: 10, gap: 12 }}
+    >
       <Skeleton width={96} height={136} borderRadius={10} />
       <View style={{ flex: 1 }}>
         <Skeleton width="80%" height={18} borderRadius={6} />
-        <Skeleton width="60%" height={14} borderRadius={4} style={{ marginTop: 8 }} />
-        <Skeleton width="90%" height={14} borderRadius={4} style={{ marginTop: 6 }} />
+        <Skeleton
+          width="60%"
+          height={14}
+          borderRadius={4}
+          style={{ marginTop: 8 }}
+        />
+        <Skeleton
+          width="90%"
+          height={14}
+          borderRadius={4}
+          style={{ marginTop: 6 }}
+        />
       </View>
     </View>
   );
@@ -123,11 +144,18 @@ export function SearchResultSkeleton() {
 export function ShelfRowSkeleton({ count = 5 }: { count?: number }) {
   return (
     <View style={{ marginBottom: 28 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 16 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          paddingHorizontal: 16,
+        }}
+      >
         <Skeleton width={140} height={22} borderRadius={6} />
         <Skeleton width={56} height={16} borderRadius={4} />
       </View>
-      <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
+      <View style={{ flexDirection: "row", paddingHorizontal: 16 }}>
         {Array.from({ length: count }).map((_, i) => (
           <PosterSkeleton key={i} width={120} height={180} />
         ))}

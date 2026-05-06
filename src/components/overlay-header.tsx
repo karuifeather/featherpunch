@@ -1,9 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { ACCENT } from '@/constants/designTokens';
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Content row min height (excluding safe area). Tighter = more native. */
 export const OVERLAY_HEADER_ROW_HEIGHT = 40;
@@ -28,7 +27,11 @@ export interface OverlayHeaderProps {
  * Top-level tab screen header: title-first, flat, no wordmark dominance.
  * Use for Home (title="Today", optional subtitle), Roles, Insights, Settings.
  */
-export function OverlayHeader({ title, subtitle, trailing }: OverlayHeaderProps) {
+export function OverlayHeader({
+  title,
+  subtitle,
+  trailing,
+}: OverlayHeaderProps) {
   const insets = useSafeAreaInsets();
   const { hex } = useThemeColors();
 
@@ -44,9 +47,17 @@ export function OverlayHeader({ title, subtitle, trailing }: OverlayHeaderProps)
       ]}
       pointerEvents="box-none"
     >
-      <View style={[styles.row, { paddingHorizontal: CONTENT_PADDING_H, paddingVertical: CONTENT_PADDING_V }]}>
+      <View
+        style={[
+          styles.row,
+          {
+            paddingHorizontal: CONTENT_PADDING_H,
+            paddingVertical: CONTENT_PADDING_V,
+          },
+        ]}
+      >
         <View style={styles.titleBlock}>
-          {subtitle != null && subtitle !== '' && (
+          {subtitle != null && subtitle !== "" && (
             <Text
               style={[styles.subtitle, { color: hex.textTertiary }]}
               numberOfLines={1}
@@ -54,14 +65,13 @@ export function OverlayHeader({ title, subtitle, trailing }: OverlayHeaderProps)
               {subtitle}
             </Text>
           )}
-          <Text
-            style={[styles.title, { color: hex.text }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.title, { color: hex.text }]} numberOfLines={1}>
             {title}
           </Text>
         </View>
-        {trailing != null ? <View style={styles.headerTrailing}>{trailing}</View> : null}
+        {trailing != null ? (
+          <View style={styles.headerTrailing}>{trailing}</View>
+        ) : null}
       </View>
     </View>
   );
@@ -101,7 +111,15 @@ export function DetailOverlayHeader({
       ]}
       pointerEvents="box-none"
     >
-      <View style={[styles.detailRow, { paddingHorizontal: CONTENT_PADDING_H, paddingVertical: CONTENT_PADDING_V }]}>
+      <View
+        style={[
+          styles.detailRow,
+          {
+            paddingHorizontal: CONTENT_PADDING_H,
+            paddingVertical: CONTENT_PADDING_V,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={onBack ?? (() => router.back())}
           style={styles.backBtn}
@@ -118,7 +136,11 @@ export function DetailOverlayHeader({
         >
           {title}
         </Text>
-        {trailing != null ? <View style={styles.trailing}>{trailing}</View> : <View style={styles.trailing} />}
+        {trailing != null ? (
+          <View style={styles.trailing}>{trailing}</View>
+        ) : (
+          <View style={styles.trailing} />
+        )}
       </View>
     </View>
   );
@@ -126,7 +148,7 @@ export function DetailOverlayHeader({
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     top: 0,
@@ -134,32 +156,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     minHeight: OVERLAY_HEADER_ROW_HEIGHT,
   },
   titleBlock: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   subtitle: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: "500",
     letterSpacing: 0.4,
     marginBottom: 1,
   },
   title: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: -0.3,
   },
   headerTrailing: {
     marginLeft: 12,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     minHeight: OVERLAY_HEADER_ROW_HEIGHT,
     gap: 8,
   },
@@ -170,12 +192,12 @@ const styles = StyleSheet.create({
   detailTitle: {
     flex: 1,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: -0.3,
     marginLeft: 4,
   },
   trailing: {
     minWidth: 32,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
 });

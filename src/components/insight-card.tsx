@@ -1,14 +1,14 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import type { InsightCard as InsightCardType } from '@/types';
+import React from "react";
+import { View, Text } from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import type { InsightCard as InsightCardType } from "@/types";
 
 const TYPE_COLORS = {
-  neutral: '#71717a',
-  positive: '#22c55e',
-  reflective: '#64748b',
-  warning: '#d97706',
+  neutral: "#71717a",
+  positive: "#22c55e",
+  reflective: "#64748b",
+  warning: "#d97706",
 };
 
 interface InsightCardProps {

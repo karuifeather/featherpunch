@@ -1,33 +1,54 @@
-import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
-import { useModalStore } from '@/stores/modal-store';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { BarChart } from 'react-native-gifted-charts';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
-import { getRoleById } from '@/db/roles';
-import { getRoleHistorySummary, getSessionsByRoleAndDateRange } from '@/db/sessions';
-import { computeAnalytics, computeRoleTimeSeries } from '@/services/analytics';
-import { RoleIcon } from '@/components/role-icon';
-import { EdgeToEdgeScreen } from '@/components/screen-container';
-import { ACCENT, RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import { formatDate, formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
+import React, {
+  useCallback,
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
+import { useLocalSearchParams, useFocusEffect, useRouter } from "expo-router";
+import { useModalStore } from "@/stores/modal-store";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { BarChart } from "react-native-gifted-charts";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useEdgeToEdgeInsets } from "@/hooks/useEdgeToEdgeInsets";
+import { getRoleById } from "@/db/roles";
+import {
+  getRoleHistorySummary,
+  getSessionsByRoleAndDateRange,
+} from "@/db/sessions";
+import { computeAnalytics, computeRoleTimeSeries } from "@/services/analytics";
+import { RoleIcon } from "@/components/role-icon";
+import { EdgeToEdgeScreen } from "@/components/screen-container";
+import { ACCENT, RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import {
+  formatDate,
+  formatDurationShort,
+  formatTime,
+  getDayLabel,
+} from "@/utils/formatTime";
 import {
   getRollingRange,
   getRollingRangeQueryBounds,
   type RollingRangePreset,
-} from '@/utils/dateRanges';
-import { formatLocalDayLabel, getLocalDayKey } from '@/utils/localDate';
-import { deriveRoleRangeEmptyState } from '@/utils/roleRangeEmptyState';
-import type { Role } from '@/types';
-import type { SessionWithRole } from '@/types';
+} from "@/utils/dateRanges";
+import { formatLocalDayLabel, getLocalDayKey } from "@/utils/localDate";
+import { deriveRoleRangeEmptyState } from "@/utils/roleRangeEmptyState";
+import type { Role } from "@/types";
+import type { SessionWithRole } from "@/types";
 
 const MIN_ACTIVE_DAYS_FOR_CHART = 5;
 
 /** "7:40 PM – 7:48 PM" */
 function formatTimeRange(startAt: string, endAt: string | null): string {
-  if (!endAt) return formatTime(startAt) + ' – —';
+  if (!endAt) return formatTime(startAt) + " – —";
   return `${formatTime(startAt)} – ${formatTime(endAt)}`;
 }
 
@@ -35,22 +56,25 @@ function formatTimeRange(startAt: string, endAt: string | null): string {
 function getNiceChartMax(maxBarValueHours: number): number {
   const NICE = [0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
   if (maxBarValueHours <= 0) return 0.5;
-  const withHeadroom = Math.max(maxBarValueHours * 1.15, maxBarValueHours + 0.05);
+  const withHeadroom = Math.max(
+    maxBarValueHours * 1.15,
+    maxBarValueHours + 0.05,
+  );
   const found = NICE.find((n) => n >= withHeadroom);
   return found ?? (Math.ceil(withHeadroom) || 1);
 }
 
-type Period = '7d' | '30d';
+type Period = "7d" | "30d";
 
 function getPresetFromPeriod(period: Period): RollingRangePreset {
-  return period === '7d' ? 'last7Days' : 'last30Days';
+  return period === "7d" ? "last7Days" : "last30Days";
 }
 
 /** Total ms for completed sessions within [startIso, endIso). */
 function totalMsInRange(
   sessions: SessionWithRole[],
   startIso: string,
-  endIso: string
+  endIso: string,
 ): number {
   const startMs = new Date(startIso).getTime();
   const endMs = new Date(endIso).getTime();
@@ -76,16 +100,23 @@ function OverviewRow({
   return (
     <View
       style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         paddingVertical: 10,
         borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: hex.border,
       }}
     >
       <Text style={{ fontSize: 14, color: hex.textSecondary }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '500', color: hex.text, fontVariant: ['tabular-nums'] as const }}>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: "500",
+          color: hex.text,
+          fontVariant: ["tabular-nums"] as const,
+        }}
+      >
         {value}
       </Text>
     </View>
@@ -96,17 +127,23 @@ function refetchSessions(
   roleId: string,
   period: Period,
   setSessions: (s: SessionWithRole[]) => void,
-  setSessionsForRanges: (s: SessionWithRole[]) => void
+  setSessionsForRanges: (s: SessionWithRole[]) => void,
 ) {
   const selectedRange = getRollingRange(getPresetFromPeriod(period));
   const selectedBounds = getRollingRangeQueryBounds(selectedRange);
-  getSessionsByRoleAndDateRange(roleId, selectedBounds.startIso, selectedBounds.endExclusiveIso).then(
-    setSessions
+  getSessionsByRoleAndDateRange(
+    roleId,
+    selectedBounds.startIso,
+    selectedBounds.endExclusiveIso,
+  ).then(setSessions);
+  const widestRollingBounds = getRollingRangeQueryBounds(
+    getRollingRange("last90Days"),
   );
-  const widestRollingBounds = getRollingRangeQueryBounds(getRollingRange('last90Days'));
-  getSessionsByRoleAndDateRange(roleId, widestRollingBounds.startIso, widestRollingBounds.endExclusiveIso).then(
-    setSessionsForRanges
-  );
+  getSessionsByRoleAndDateRange(
+    roleId,
+    widestRollingBounds.startIso,
+    widestRollingBounds.endExclusiveIso,
+  ).then(setSessionsForRanges);
 }
 
 export default function RoleStatsScreen() {
@@ -117,10 +154,14 @@ export default function RoleStatsScreen() {
   const { openSessionEditor, sessionEditorId } = useModalStore();
   const [role, setRole] = useState<Role | null | undefined>(undefined);
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
-  const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>([]);
+  const [sessionsForRanges, setSessionsForRanges] = useState<SessionWithRole[]>(
+    [],
+  );
   const [completedSessionCount, setCompletedSessionCount] = useState(0);
-  const [lastCompletedSessionAt, setLastCompletedSessionAt] = useState<string | null>(null);
-  const [period, setPeriod] = useState<Period>('7d');
+  const [lastCompletedSessionAt, setLastCompletedSessionAt] = useState<
+    string | null
+  >(null);
+  const [period, setPeriod] = useState<Period>("7d");
   const prevSessionEditorId = useRef<string | null>(null);
 
   useFocusEffect(
@@ -132,11 +173,15 @@ export default function RoleStatsScreen() {
         setLastCompletedSessionAt(summary.lastSessionAt);
       });
       refetchSessions(id, period, setSessions, setSessionsForRanges);
-    }, [id, period])
+    }, [id, period]),
   );
 
   useEffect(() => {
-    if (prevSessionEditorId.current !== null && sessionEditorId === null && id) {
+    if (
+      prevSessionEditorId.current !== null &&
+      sessionEditorId === null &&
+      id
+    ) {
       getRoleHistorySummary(id).then((summary) => {
         setCompletedSessionCount(summary.completedSessionCount);
         setLastCompletedSessionAt(summary.lastSessionAt);
@@ -148,18 +193,37 @@ export default function RoleStatsScreen() {
 
   const rangeTotals = useMemo(() => {
     const now = new Date();
-    const last7 = getRollingRangeQueryBounds(getRollingRange('last7Days', now));
-    const last30 = getRollingRangeQueryBounds(getRollingRange('last30Days', now));
-    const last90 = getRollingRangeQueryBounds(getRollingRange('last90Days', now));
+    const last7 = getRollingRangeQueryBounds(getRollingRange("last7Days", now));
+    const last30 = getRollingRangeQueryBounds(
+      getRollingRange("last30Days", now),
+    );
+    const last90 = getRollingRangeQueryBounds(
+      getRollingRange("last90Days", now),
+    );
     return {
-      '7d': totalMsInRange(sessionsForRanges, last7.startIso, last7.endExclusiveIso),
-      '30d': totalMsInRange(sessionsForRanges, last30.startIso, last30.endExclusiveIso),
-      '90d': totalMsInRange(sessionsForRanges, last90.startIso, last90.endExclusiveIso),
+      "7d": totalMsInRange(
+        sessionsForRanges,
+        last7.startIso,
+        last7.endExclusiveIso,
+      ),
+      "30d": totalMsInRange(
+        sessionsForRanges,
+        last30.startIso,
+        last30.endExclusiveIso,
+      ),
+      "90d": totalMsInRange(
+        sessionsForRanges,
+        last90.startIso,
+        last90.endExclusiveIso,
+      ),
     };
   }, [sessionsForRanges]);
 
   const analytics = useMemo(() => computeAnalytics(sessions), [sessions]);
-  const timeSeries = useMemo(() => computeRoleTimeSeries(sessions, period), [sessions, period]);
+  const timeSeries = useMemo(
+    () => computeRoleTimeSeries(sessions, period),
+    [sessions, period],
+  );
 
   // Chart data: use sessions (period fetch) when available so chart shows immediately; else use sessionsForRanges filtered to period
   const sessionsInPeriodFromRanges = useMemo(() => {
@@ -175,55 +239,81 @@ export default function RoleStatsScreen() {
 
   const timeSeriesForChartFromRanges = useMemo(
     () => computeRoleTimeSeries(sessionsInPeriodFromRanges, period),
-    [sessionsInPeriodFromRanges, period]
+    [sessionsInPeriodFromRanges, period],
   );
 
   const barData = useMemo(() => {
-    const series = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+    const series =
+      sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
     return series.map((d) => {
-      const xLabel = period === '30d' ? undefined : d.label;
-      const item: { value: number; label?: string; frontColor: string; labelComponent?: () => React.ReactNode } = {
+      const xLabel = period === "30d" ? undefined : d.label;
+      const item: {
+        value: number;
+        label?: string;
+        frontColor: string;
+        labelComponent?: () => React.ReactNode;
+      } = {
         value: Math.round((d.totalMs / 3600000) * 10) / 10,
         frontColor: role?.color ?? hex.text,
       };
-      if (period === '7d' && xLabel) item.label = xLabel;
-      if (period === '30d') item.labelComponent = () => <View style={{ width: 0, height: 0 }} />;
+      if (period === "7d" && xLabel) item.label = xLabel;
+      if (period === "30d")
+        item.labelComponent = () => <View style={{ width: 0, height: 0 }} />;
       return item;
     });
-  }, [sessions.length, timeSeries, timeSeriesForChartFromRanges, period, role?.color, hex.text]);
+  }, [
+    sessions.length,
+    timeSeries,
+    timeSeriesForChartFromRanges,
+    period,
+    role?.color,
+    hex.text,
+  ]);
 
   const monthlyAxisLabels = useMemo(() => {
-    if (period !== '30d') return null;
-    const series = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+    if (period !== "30d") return null;
+    const series =
+      sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
     if (series.length < 30) return null;
     const first = series[0];
     const mid = series[14];
     const last = series[29];
     const fmt = (dateKey: string) => {
-      const [y, m, d] = dateKey.split('-').map(Number);
-      const monthShort = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short' });
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const monthShort = new Date(y, m - 1, 1).toLocaleDateString(undefined, {
+        month: "short",
+      });
       return `${monthShort} ${d}`;
     };
-    return { left: fmt(first.dateKey), middle: mid.dateKey.slice(8, 10), right: fmt(last.dateKey) };
+    return {
+      left: fmt(first.dateKey),
+      middle: mid.dateKey.slice(8, 10),
+      right: fmt(last.dateKey),
+    };
   }, [period, sessions.length, timeSeries, timeSeriesForChartFromRanges]);
 
   const chartYMax = useMemo(() => {
-    const maxHours = barData.length ? Math.max(...barData.map((d) => d.value)) : 0;
+    const maxHours = barData.length
+      ? Math.max(...barData.map((d) => d.value))
+      : 0;
     return getNiceChartMax(maxHours);
   }, [barData]);
 
-  const seriesForChart = sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
+  const seriesForChart =
+    sessions.length > 0 ? timeSeries : timeSeriesForChartFromRanges;
   const activeDaysInPeriod = useMemo(
     () => seriesForChart.filter((d) => d.totalMs > 0).length,
-    [seriesForChart]
+    [seriesForChart],
   );
-  const showChart = barData.length > 0 && activeDaysInPeriod >= MIN_ACTIVE_DAYS_FOR_CHART;
-  const chartWidth = Dimensions.get('window').width - 80;
+  const chartWidth = Dimensions.get("window").width - 80;
 
   const roleStat = analytics.roleStats[0];
   const totalMs = roleStat?.totalMs ?? 0;
 
-  const selectedRange = useMemo(() => getRollingRange(getPresetFromPeriod(period)), [period]);
+  const selectedRange = useMemo(
+    () => getRollingRange(getPresetFromPeriod(period)),
+    [period],
+  );
   const primaryStat = `${formatDurationShort(totalMs)} in ${selectedRange.label.toLowerCase()}`;
   const roleRangeEmptyState = useMemo(
     () =>
@@ -233,30 +323,37 @@ export default function RoleStatsScreen() {
         completedSessionCount,
         lastSessionAt: lastCompletedSessionAt,
       }),
-    [period, sessions.length, completedSessionCount, lastCompletedSessionAt]
+    [period, sessions.length, completedSessionCount, lastCompletedSessionAt],
   );
 
   const sessionsNewestFirst = useMemo(
-    () => [...sessions].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()),
-    [sessions]
+    () =>
+      [...sessions].sort(
+        (a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime(),
+      ),
+    [sessions],
   );
 
-  const { logSessions, zeroMinuteSessions, showCorrectionsToggle } = useMemo(() => {
-    const getMs = (s: SessionWithRole) =>
-      s.durationMs ?? (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : 0);
-    const zero: SessionWithRole[] = [];
-    const main: SessionWithRole[] = [];
-    for (const s of sessionsNewestFirst) {
-      const ms = getMs(s);
-      if (ms < 60_000) zero.push(s);
-      else main.push(s);
-    }
-    return {
-      logSessions: main,
-      zeroMinuteSessions: zero,
-      showCorrectionsToggle: zero.length > 0,
-    };
-  }, [sessionsNewestFirst]);
+  const { logSessions, zeroMinuteSessions, showCorrectionsToggle } =
+    useMemo(() => {
+      const getMs = (s: SessionWithRole) =>
+        s.durationMs ??
+        (s.endAt
+          ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime()
+          : 0);
+      const zero: SessionWithRole[] = [];
+      const main: SessionWithRole[] = [];
+      for (const s of sessionsNewestFirst) {
+        const ms = getMs(s);
+        if (ms < 60_000) zero.push(s);
+        else main.push(s);
+      }
+      return {
+        logSessions: main,
+        zeroMinuteSessions: zero,
+        showCorrectionsToggle: zero.length > 0,
+      };
+    }, [sessionsNewestFirst]);
 
   const [showCorrections, setShowCorrections] = useState(false);
   const logSessionsToShow = showCorrections ? sessionsNewestFirst : logSessions;
@@ -278,39 +375,56 @@ export default function RoleStatsScreen() {
       : null;
 
   const overviewRows: { label: string; value: string }[] = [];
-  overviewRows.push({ label: 'Total time', value: formatDurationShort(totalMs) });
+  overviewRows.push({
+    label: "Total time",
+    value: formatDurationShort(totalMs),
+  });
   if (role?.hourlyRate != null) {
     const hours = totalMs / 3_600_000;
     const estEarning = hours * role.hourlyRate;
-    overviewRows.push({ label: 'Est. earning', value: `$${estEarning.toFixed(2)}` });
+    overviewRows.push({
+      label: "Est. earning",
+      value: `$${estEarning.toFixed(2)}`,
+    });
   }
-  overviewRows.push({ label: 'Punch-ins', value: String(analytics.sessionCount) });
+  overviewRows.push({
+    label: "Punch-ins",
+    value: String(analytics.sessionCount),
+  });
   if (roleStat && roleStat.sessionCount >= 2) {
     overviewRows.push({
-      label: 'Average time in role',
+      label: "Average time in role",
       value: formatDurationShort(roleStat.avgSessionMs),
     });
   }
-  const last7 = rangeTotals['7d'];
-  const last30 = rangeTotals['30d'];
+  const last7 = rangeTotals["7d"];
+  const last30 = rangeTotals["30d"];
   overviewRows.push({
-    label: getRollingRange('last7Days').label,
+    label: getRollingRange("last7Days").label,
     value: formatDurationShort(last7),
   });
   overviewRows.push({
-    label: getRollingRange('last30Days').label,
+    label: getRollingRange("last30Days").label,
     value: formatDurationShort(last30),
   });
   if (mostRecentDayActive) {
-    overviewRows.push({ label: 'Most recent day active', value: mostRecentDayActive });
+    overviewRows.push({
+      label: "Most recent day active",
+      value: mostRecentDayActive,
+    });
   }
 
   if (!id) return null;
   if (role === undefined) {
     return (
       <EdgeToEdgeScreen>
-        <View className={bg} style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}>
-          <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary }}>Loading…</Text>
+        <View
+          className={bg}
+          style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}
+        >
+          <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary }}>
+            Loading…
+          </Text>
         </View>
       </EdgeToEdgeScreen>
     );
@@ -318,10 +432,17 @@ export default function RoleStatsScreen() {
   if (role === null) {
     return (
       <EdgeToEdgeScreen>
-        <View className={bg} style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}>
+        <View
+          className={bg}
+          style={{ flex: 1, paddingTop: safeTop + 20, padding: 20 }}
+        >
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <FontAwesome name="chevron-left" size={20} color={ACCENT.primary} />
@@ -347,8 +468,8 @@ export default function RoleStatsScreen() {
         {/* 1. Role detail header (back + icon + name) */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: "row",
+            alignItems: "center",
             gap: 14,
             marginBottom: 14,
             paddingVertical: 4,
@@ -365,16 +486,19 @@ export default function RoleStatsScreen() {
           </TouchableOpacity>
           <RoleIcon icon={role.icon} color={role.color} size={28} bgSize={52} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text }} numberOfLines={1}>
+            <Text
+              style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text }}
+              numberOfLines={1}
+            >
               {role.name}
             </Text>
             <Text
               style={{
                 fontSize: 15,
-                fontWeight: '600',
+                fontWeight: "600",
                 color: hex.textSecondary,
                 marginTop: 4,
-                fontVariant: ['tabular-nums'] as const,
+                fontVariant: ["tabular-nums"] as const,
               }}
             >
               {primaryStat}
@@ -385,7 +509,7 @@ export default function RoleStatsScreen() {
         {/* 2. Period selector — compact segmented control */}
         <View
           style={{
-            flexDirection: 'row',
+            flexDirection: "row",
             backgroundColor: hex.surface,
             borderRadius: RADIUS.sm,
             padding: 3,
@@ -394,7 +518,7 @@ export default function RoleStatsScreen() {
             borderColor: hex.border,
           }}
         >
-          {(['7d', '30d'] as Period[]).map((p) => (
+          {(["7d", "30d"] as Period[]).map((p) => (
             <TouchableOpacity
               key={p}
               onPress={() => setPeriod(p)}
@@ -402,18 +526,18 @@ export default function RoleStatsScreen() {
                 flex: 1,
                 paddingVertical: 8,
                 borderRadius: RADIUS.sm - 2,
-                backgroundColor: period === p ? hex.elevated : 'transparent',
+                backgroundColor: period === p ? hex.elevated : "transparent",
               }}
             >
               <Text
                 style={{
                   fontSize: 14,
-                  fontWeight: period === p ? '600' : '500',
+                  fontWeight: period === p ? "600" : "500",
                   color: period === p ? hex.text : hex.textSecondary,
-                  textAlign: 'center',
+                  textAlign: "center",
                 }}
               >
-                {p === '7d' ? '7 days' : '30 days'}
+                {p === "7d" ? "7 days" : "30 days"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -429,7 +553,7 @@ export default function RoleStatsScreen() {
         </Text>
 
         {/* 3. Trend section */}
-        {roleRangeEmptyState.kind !== 'none' ? (
+        {roleRangeEmptyState.kind !== "none" ? (
           <View
             style={{
               backgroundColor: hex.surface,
@@ -440,48 +564,98 @@ export default function RoleStatsScreen() {
               borderColor: hex.border,
             }}
           >
-            {roleRangeEmptyState.kind === 'noLogsEver' ? (
+            {roleRangeEmptyState.kind === "noLogsEver" ? (
               <>
-                <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.body,
+                    color: hex.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
                   No logs for this role yet
                 </Text>
                 <Text
-                  style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+                  style={{
+                    fontSize: 14,
+                    color: hex.textTertiary,
+                    textAlign: "center",
+                    marginTop: 6,
+                  }}
                 >
                   Punch in to {role.name} to start building history.
                 </Text>
               </>
             ) : (
               <>
-                <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.body,
+                    color: hex.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
                   No time in the {roleRangeEmptyState.rangeLabel}
                 </Text>
                 <Text
-                  style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+                  style={{
+                    fontSize: 14,
+                    color: hex.textTertiary,
+                    textAlign: "center",
+                    marginTop: 6,
+                  }}
                 >
-                  You last tracked {role.name} on {formatDate(roleRangeEmptyState.lastSessionAt)}.
+                  You last tracked {role.name} on{" "}
+                  {formatDate(roleRangeEmptyState.lastSessionAt)}.
                 </Text>
                 {roleRangeEmptyState.canSwitchToWiderRange ? (
                   <TouchableOpacity
-                    onPress={() => setPeriod('30d')}
-                    style={{ alignSelf: 'center', marginTop: 14, paddingHorizontal: 8, paddingVertical: 4 }}
+                    onPress={() => setPeriod("30d")}
+                    style={{
+                      alignSelf: "center",
+                      marginTop: 14,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                    }}
                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: ACCENT.primary }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: ACCENT.primary,
+                      }}
+                    >
                       View last 30 days
                     </Text>
                   </TouchableOpacity>
-                ) : period === '30d' ? (
-                  <View style={{ marginTop: 6, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center' }}>
+                ) : period === "30d" ? (
+                  <View style={{ marginTop: 6, alignItems: "center" }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: hex.textTertiary,
+                        textAlign: "center",
+                      }}
+                    >
                       Older history exists.
                     </Text>
                     <TouchableOpacity
                       onPress={() => router.push(`/(root)/logs?roleId=${id}`)}
-                      style={{ marginTop: 8, paddingHorizontal: 8, paddingVertical: 4 }}
+                      style={{
+                        marginTop: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
                       hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: ACCENT.primary }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: ACCENT.primary,
+                        }}
+                      >
                         View {role.name} logs
                       </Text>
                     </TouchableOpacity>
@@ -501,11 +675,22 @@ export default function RoleStatsScreen() {
               borderColor: hex.border,
             }}
           >
-            <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
+            <Text
+              style={{
+                ...TYPOGRAPHY.body,
+                color: hex.textSecondary,
+                textAlign: "center",
+              }}
+            >
               Not enough time yet for a {selectedRange.shortLabel} trend
             </Text>
             <Text
-              style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
+              style={{
+                fontSize: 14,
+                color: hex.textTertiary,
+                textAlign: "center",
+                marginTop: 6,
+              }}
             >
               Punch into this role across a few days to see the pattern
             </Text>
@@ -541,19 +726,25 @@ export default function RoleStatsScreen() {
               barBorderRadius={6}
               isAnimated={false}
             />
-            {period === '30d' && monthlyAxisLabels && (
+            {period === "30d" && monthlyAxisLabels && (
               <View
                 style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
+                  flexDirection: "row",
+                  justifyContent: "space-between",
                   paddingLeft: 36,
                   paddingRight: 8,
                   marginTop: 4,
                 }}
               >
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.left}</Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.middle}</Text>
-                <Text style={{ fontSize: 10, color: hex.textTertiary }}>{monthlyAxisLabels.right}</Text>
+                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                  {monthlyAxisLabels.left}
+                </Text>
+                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                  {monthlyAxisLabels.middle}
+                </Text>
+                <Text style={{ fontSize: 10, color: hex.textTertiary }}>
+                  {monthlyAxisLabels.right}
+                </Text>
               </View>
             )}
           </View>
@@ -611,7 +802,9 @@ export default function RoleStatsScreen() {
             >
               Role log
             </Text>
-            {sessionsByDay.length === 0 && !showCorrectionsToggle ? null : sessionsByDay.length === 0 && showCorrectionsToggle ? (
+            {sessionsByDay.length === 0 &&
+            !showCorrectionsToggle ? null : sessionsByDay.length === 0 &&
+              showCorrectionsToggle ? (
               <View style={{ paddingVertical: 12 }}>
                 <Text style={{ fontSize: 14, color: hex.textSecondary }}>
                   All entries are corrections (0m). Toggle below to show.
@@ -620,15 +813,17 @@ export default function RoleStatsScreen() {
             ) : (
               <View style={{ gap: 16 }}>
                 {sessionsByDay.map(({ dateKey, sessions: daySessions }) => {
-                  const dayLabel = formatLocalDayLabel(daySessions[0]?.startAt ?? dateKey);
+                  const dayLabel = formatLocalDayLabel(
+                    daySessions[0]?.startAt ?? dateKey,
+                  );
                   return (
                     <View key={dateKey}>
                       <Text
                         style={{
                           fontSize: 12,
-                          fontWeight: '600',
+                          fontWeight: "600",
                           color: hex.textTertiary,
-                          textTransform: 'uppercase',
+                          textTransform: "uppercase",
                           letterSpacing: 0.4,
                           marginBottom: 6,
                           paddingHorizontal: 2,
@@ -640,7 +835,7 @@ export default function RoleStatsScreen() {
                         style={{
                           backgroundColor: hex.surface,
                           borderRadius: RADIUS.card,
-                          overflow: 'hidden',
+                          overflow: "hidden",
                           borderWidth: StyleSheet.hairlineWidth,
                           borderColor: hex.border,
                         }}
@@ -648,28 +843,39 @@ export default function RoleStatsScreen() {
                         {daySessions.map((s) => {
                           const durationMs =
                             s.durationMs ??
-                            (s.endAt ? new Date(s.endAt).getTime() - new Date(s.startAt).getTime() : 0);
+                            (s.endAt
+                              ? new Date(s.endAt).getTime() -
+                                new Date(s.startAt).getTime()
+                              : 0);
                           const duration = formatDurationShort(durationMs);
-                          const isLastInDay = daySessions.indexOf(s) === daySessions.length - 1;
-                          const hasNote = s.notes != null && s.notes.trim() !== '';
+                          const isLastInDay =
+                            daySessions.indexOf(s) === daySessions.length - 1;
+                          const hasNote =
+                            s.notes != null && s.notes.trim() !== "";
                           return (
                             <TouchableOpacity
                               key={s.id}
-                              onPress={() =>
-                                openSessionEditor(s.id)
-                              }
+                              onPress={() => openSessionEditor(s.id)}
                               activeOpacity={0.7}
                               style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "space-between",
                                 paddingVertical: 12,
                                 paddingHorizontal: 14,
-                                borderBottomWidth: isLastInDay ? 0 : StyleSheet.hairlineWidth,
+                                borderBottomWidth: isLastInDay
+                                  ? 0
+                                  : StyleSheet.hairlineWidth,
                                 borderBottomColor: hex.border,
                               }}
                             >
-                              <View style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
+                              <View
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  marginRight: 12,
+                                }}
+                              >
                                 <Text
                                   style={{ fontSize: 15, color: hex.text }}
                                   numberOfLines={1}
@@ -689,18 +895,28 @@ export default function RoleStatsScreen() {
                                   </Text>
                                 )}
                               </View>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
                                 <Text
                                   style={{
                                     fontSize: 15,
-                                    fontWeight: '600',
+                                    fontWeight: "600",
                                     color: hex.textSecondary,
-                                    fontVariant: ['tabular-nums'] as const,
+                                    fontVariant: ["tabular-nums"] as const,
                                   }}
                                 >
                                   {duration}
                                 </Text>
-                                <Ionicons name="create-outline" size={18} color={hex.textTertiary} />
+                                <Ionicons
+                                  name="create-outline"
+                                  size={18}
+                                  color={hex.textTertiary}
+                                />
                               </View>
                             </TouchableOpacity>
                           );
@@ -727,8 +943,8 @@ export default function RoleStatsScreen() {
               >
                 <Text style={{ fontSize: 13, color: hex.textTertiary }}>
                   {showCorrections
-                    ? 'Hide corrections'
-                    : `${zeroMinuteSessions.length} correction${zeroMinuteSessions.length === 1 ? '' : 's'} (0m)`}
+                    ? "Hide corrections"
+                    : `${zeroMinuteSessions.length} correction${zeroMinuteSessions.length === 1 ? "" : "s"} (0m)`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -738,4 +954,3 @@ export default function RoleStatsScreen() {
     </EdgeToEdgeScreen>
   );
 }
-

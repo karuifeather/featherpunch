@@ -1,35 +1,48 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
-import { computeAnalytics } from '@/services/analytics';
-import { hasEnoughDataForInsights } from '@/services/insights';
-import { OverlayHeader } from '@/components/overlay-header';
-import { EdgeToEdgeScreen } from '@/components/screen-container';
-import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
-import { formatDurationShort } from '@/utils/formatTime';
-import { getRollingRange, getRollingRangeQueryBounds, type RollingRangePreset } from '@/utils/dateRanges';
-import { getSessionsByDateRange } from '@/db/sessions';
-import type { SessionWithRole } from '@/types';
+import React, { useCallback, useEffect, useState, useMemo } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  AppState,
+  AppStateStatus,
+} from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useEdgeToEdgeInsets } from "@/hooks/useEdgeToEdgeInsets";
+import { computeAnalytics } from "@/services/analytics";
+import { hasEnoughDataForInsights } from "@/services/insights";
+import { OverlayHeader } from "@/components/overlay-header";
+import { EdgeToEdgeScreen } from "@/components/screen-container";
+import { RADIUS, TYPOGRAPHY } from "@/constants/designTokens";
+import { formatDurationShort } from "@/utils/formatTime";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+  type RollingRangePreset,
+} from "@/utils/dateRanges";
+import { getSessionsByDateRange } from "@/db/sessions";
+import type { SessionWithRole } from "@/types";
 
-type Period = '7d' | '30d' | '90d';
+type Period = "7d" | "30d" | "90d";
 
 function getPresetFromPeriod(period: Period): RollingRangePreset {
-  if (period === '7d') return 'last7Days';
-  if (period === '30d') return 'last30Days';
-  return 'last90Days';
+  if (period === "7d") return "last7Days";
+  if (period === "30d") return "last30Days";
+  return "last90Days";
 }
 
 export default function StatsScreen() {
   const { hex, bg } = useThemeColors();
   const { tabBarHeight, overlayHeaderHeight } = useEdgeToEdgeInsets();
-  const [period, setPeriod] = useState<Period>('7d');
+  const [period, setPeriod] = useState<Period>("7d");
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
   const refreshStatsData = useCallback(() => {
     const range = getRollingRange(getPresetFromPeriod(period));
     const bounds = getRollingRangeQueryBounds(range);
-    getSessionsByDateRange(bounds.startIso, bounds.endExclusiveIso).then(setSessions);
+    getSessionsByDateRange(bounds.startIso, bounds.endExclusiveIso).then(
+      setSessions,
+    );
   }, [period]);
 
   useEffect(() => {
@@ -39,18 +52,23 @@ export default function StatsScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshStatsData();
-    }, [refreshStatsData])
+    }, [refreshStatsData]),
   );
 
   useEffect(() => {
     let lastAppState = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
-      if (isReturningToForeground) {
-        refreshStatsData();
-      }
-      lastAppState = nextAppState;
-    });
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        const isReturningToForeground =
+          lastAppState.match(/inactive|background/) &&
+          nextAppState === "active";
+        if (isReturningToForeground) {
+          refreshStatsData();
+        }
+        lastAppState = nextAppState;
+      },
+    );
 
     return () => subscription.remove();
   }, [refreshStatsData]);
@@ -60,7 +78,10 @@ export default function StatsScreen() {
   const completedCount = sessions.filter((s) => s.endAt != null).length;
   const hasMultipleRoles = analytics.roleStats.length >= 2;
   const totalMs = analytics.totalMs || 1;
-  const selectedRange = useMemo(() => getRollingRange(getPresetFromPeriod(period)), [period]);
+  const selectedRange = useMemo(
+    () => getRollingRange(getPresetFromPeriod(period)),
+    [period],
+  );
 
   return (
     <EdgeToEdgeScreen
@@ -75,8 +96,8 @@ export default function StatsScreen() {
           paddingHorizontal: 20,
         }}
       >
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
-          {(['7d', '30d', '90d'] as Period[]).map((p) => (
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
+          {(["7d", "30d", "90d"] as Period[]).map((p) => (
             <TouchableOpacity
               key={p}
               onPress={() => setPeriod(p)}
@@ -84,7 +105,7 @@ export default function StatsScreen() {
                 paddingVertical: 6,
                 paddingHorizontal: 14,
                 borderRadius: RADIUS.pill,
-                backgroundColor: period === p ? `${hex.text}12` : 'transparent',
+                backgroundColor: period === p ? `${hex.text}12` : "transparent",
                 borderWidth: 1,
                 borderColor: period === p ? hex.border : hex.border,
               }}
@@ -92,11 +113,11 @@ export default function StatsScreen() {
               <Text
                 style={{
                   fontSize: 13,
-                  fontWeight: period === p ? '600' : '400',
+                  fontWeight: period === p ? "600" : "400",
                   color: period === p ? hex.text : hex.textSecondary,
                 }}
               >
-                {p === '7d' ? '7 days' : p === '30d' ? '30 days' : '90 days'}
+                {p === "7d" ? "7 days" : p === "30d" ? "30 days" : "90 days"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -117,7 +138,7 @@ export default function StatsScreen() {
               backgroundColor: hex.surface,
               borderRadius: RADIUS.card,
               padding: 28,
-              alignItems: 'center',
+              alignItems: "center",
               borderWidth: 1,
               borderColor: hex.border,
             }}
@@ -126,7 +147,7 @@ export default function StatsScreen() {
               style={{
                 ...TYPOGRAPHY.body,
                 color: hex.textSecondary,
-                textAlign: 'center',
+                textAlign: "center",
                 marginBottom: 8,
               }}
             >
@@ -136,7 +157,7 @@ export default function StatsScreen() {
               style={{
                 fontSize: 14,
                 color: hex.textTertiary,
-                textAlign: 'center',
+                textAlign: "center",
               }}
             >
               Keep punching in across a few days to unlock richer insights.
@@ -156,7 +177,7 @@ export default function StatsScreen() {
               style={{
                 ...TYPOGRAPHY.body,
                 color: hex.textSecondary,
-                textAlign: 'center',
+                textAlign: "center",
                 marginBottom: 8,
               }}
             >
@@ -166,13 +187,17 @@ export default function StatsScreen() {
               style={{
                 fontSize: 14,
                 color: hex.textTertiary,
-                textAlign: 'center',
+                textAlign: "center",
               }}
             >
               Punch in at least 3 times to see insights
             </Text>
             <View style={{ marginTop: 20, gap: 8 }}>
-              <StatRow label="Time lived" value={formatDurationShort(analytics.totalMs)} hex={hex} />
+              <StatRow
+                label="Time lived"
+                value={formatDurationShort(analytics.totalMs)}
+                hex={hex}
+              />
             </View>
           </View>
         ) : (
@@ -184,7 +209,7 @@ export default function StatsScreen() {
                 borderRadius: RADIUS.card,
                 padding: 24,
                 marginBottom: 20,
-                alignItems: 'center',
+                alignItems: "center",
                 borderWidth: 1,
                 borderColor: hex.border,
               }}
@@ -198,7 +223,9 @@ export default function StatsScreen() {
               >
                 Total time
               </Text>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: hex.text }}>
+              <Text
+                style={{ fontSize: 28, fontWeight: "700", color: hex.text }}
+              >
                 {formatDurationShort(analytics.totalMs)}
               </Text>
             </View>
@@ -236,9 +263,9 @@ export default function StatsScreen() {
                     >
                       <View
                         style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
                           marginBottom: 4,
                         }}
                       >
@@ -248,7 +275,13 @@ export default function StatsScreen() {
                         >
                           {r.roleName}
                         </Text>
-                        <Text style={{ fontSize: 14, fontWeight: '500', color: hex.textSecondary }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "500",
+                            color: hex.textSecondary,
+                          }}
+                        >
                           {formatDurationShort(r.totalMs)}
                         </Text>
                       </View>
@@ -257,12 +290,12 @@ export default function StatsScreen() {
                           height: 6,
                           borderRadius: 3,
                           backgroundColor: hex.border,
-                          overflow: 'hidden',
+                          overflow: "hidden",
                         }}
                       >
                         <View
                           style={{
-                            position: 'absolute',
+                            position: "absolute",
                             left: 0,
                             top: 0,
                             bottom: 0,
@@ -340,7 +373,7 @@ export default function StatsScreen() {
                 style={{
                   fontSize: 13,
                   color: hex.textTertiary,
-                  textAlign: 'center',
+                  textAlign: "center",
                   marginBottom: 24,
                   paddingHorizontal: 16,
                 }}
@@ -367,15 +400,17 @@ function StatRow({
   return (
     <View
       style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        justifyContent: "space-between",
         paddingVertical: 10,
         borderBottomWidth: 1,
         borderBottomColor: hex.border,
       }}
     >
       <Text style={{ fontSize: 14, color: hex.textSecondary }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '500', color: hex.text }}>{value}</Text>
+      <Text style={{ fontSize: 14, fontWeight: "500", color: hex.text }}>
+        {value}
+      </Text>
     </View>
   );
 }

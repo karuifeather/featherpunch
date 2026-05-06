@@ -1,5 +1,5 @@
-import { combineReducers } from 'redux';
-import settingsReducer from './settingsSlice';
+import { combineReducers } from "redux";
+import settingsReducer from "./settingsSlice";
 
 const rootReducer = combineReducers({
   settings: settingsReducer,

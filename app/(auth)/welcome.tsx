@@ -1,11 +1,10 @@
-import { useRouter } from 'expo-router';
-import { View, Text, Animated } from 'react-native';
-import { useEffect, useRef } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import BrandButton from '@/components/ui/brand-button';
-import { BRAND } from '@/constants/colors';
-import '../style.css';
+import { useRouter } from "expo-router";
+import { View, Text, Animated } from "react-native";
+import { useEffect, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import BrandButton from "@/components/ui/brand-button";
+import "../style.css";
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -37,11 +36,11 @@ export default function WelcomeScreen() {
       <View className="absolute inset-0">
         <View
           className="absolute top-[-20%] right-[-10%] w-80 h-80 rounded-full opacity-[0.06]"
-          style={{ backgroundColor: '#8b5cf6' }}
+          style={{ backgroundColor: "#8b5cf6" }}
         />
         <View
           className="absolute bottom-[10%] left-[-15%] w-72 h-72 rounded-full opacity-[0.04]"
-          style={{ backgroundColor: '#f59e0b' }}
+          style={{ backgroundColor: "#f59e0b" }}
         />
       </View>
 
@@ -50,13 +49,13 @@ export default function WelcomeScreen() {
           style={{
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }],
-            alignItems: 'center',
+            alignItems: "center",
           }}
         >
           <Text
             style={{
               fontSize: 36,
-              fontWeight: '200',
+              fontWeight: "200",
               letterSpacing: -1,
             }}
             className={text}
@@ -66,7 +65,7 @@ export default function WelcomeScreen() {
           <Text
             className={`${subtext} text-base text-center mt-4 max-w-[280px] leading-6`}
           >
-            You do not live one life.{'\n'}You live many roles.
+            You do not live one life.{"\n"}You live many roles.
           </Text>
           <Text
             className={`${subtext} text-sm text-center mt-2 max-w-[260px] leading-5 opacity-70`}
@@ -78,7 +77,7 @@ export default function WelcomeScreen() {
         <View className="w-full mt-14 px-2">
           <BrandButton
             label="Get started"
-            onPress={() => router.push('./onboarding/')}
+            onPress={() => router.push("./onboarding/")}
             fullWidth
             style={{ minHeight: 56 }}
           />

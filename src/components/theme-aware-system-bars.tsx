@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
-import { AppState, NativeModules, Platform, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import * as SystemUI from 'expo-system-ui';
-import { useIsDark, THEME_HEX } from '@/hooks/useThemeColors';
+import { useEffect } from "react";
+import { AppState, NativeModules, Platform, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
+import { useIsDark, THEME_HEX } from "@/hooks/useThemeColors";
 
-export const DARK_BG = '#111827'; // gray-900
-export const LIGHT_BG = '#f3f4f6'; // gray-100
+export const DARK_BG = "#111827"; // gray-900
+export const LIGHT_BG = "#f3f4f6"; // gray-100
 
 const { ImmersiveMode } = NativeModules;
 
 function applyAndroidNavBar(lightBars: boolean) {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== "android") return;
   // Use native module — expo-navigation-bar JS API is ignored with edge-to-edge.
   // lightBars = true for dark theme (light icons), false for light theme (dark icons).
   ImmersiveMode?.setNavBarTransparent?.(lightBars);
@@ -35,7 +35,7 @@ export default function ThemeAwareSystemBars() {
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(bg);
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       applyAndroidNavBar(isDark);
     }
   }, [isDark, bg]);
@@ -43,9 +43,9 @@ export default function ThemeAwareSystemBars() {
   // Re-apply when app becomes active (return from background) — the system
   // re-applies its scrim, so we call the native module to override it.
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+    if (Platform.OS !== "android") return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
         applyAndroidNavBar(isDark);
         setTimeout(() => applyAndroidNavBar(isDark), 150);
       }
@@ -55,8 +55,8 @@ export default function ThemeAwareSystemBars() {
 
   return (
     <StatusBar
-      style={isDark ? 'light' : 'dark'}
-      translucent={Platform.OS === 'android'}
+      style={isDark ? "light" : "dark"}
+      translucent={Platform.OS === "android"}
       backgroundColor="transparent"
     />
   );

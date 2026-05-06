@@ -12,6 +12,7 @@
     "test": "jest --watchAll",
     "lint": "eslint . \"app/**/*.{js,jsx,ts,tsx}\" \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint . \"app/**/*.{js,jsx,ts,tsx}\" \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "postinstall": "patch-package"
   },

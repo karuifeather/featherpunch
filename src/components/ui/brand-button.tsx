@@ -1,7 +1,13 @@
-import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, GestureResponderEvent, ViewStyle } from 'react-native';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { BRAND } from '@/constants/colors';
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  GestureResponderEvent,
+  ViewStyle,
+} from "react-native";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { BRAND } from "@/constants/colors";
 
 type BrandButtonProps = {
   label: string;
@@ -9,7 +15,7 @@ type BrandButtonProps = {
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
-  variant?: 'primary' | 'secondary' | 'destructive';
+  variant?: "primary" | "secondary" | "destructive";
   className?: string;
   style?: ViewStyle;
 };
@@ -20,7 +26,7 @@ export function BrandButton({
   loading,
   disabled,
   fullWidth,
-  variant = 'primary',
+  variant = "primary",
   className,
   style,
 }: BrandButtonProps) {
@@ -28,33 +34,33 @@ export function BrandButton({
   const isDisabled = disabled || loading;
 
   const variantStyles =
-    variant === 'secondary'
+    variant === "secondary"
       ? `${elevated} border border-gray-400 dark:border-gray-500`
-      : variant === 'destructive'
-        ? 'bg-red-500 active:bg-red-600'
-        : 'bg-primary active:bg-primary-dark';
+      : variant === "destructive"
+        ? "bg-red-500 active:bg-red-600"
+        : "bg-primary active:bg-primary-dark";
 
   const textStyles =
-    variant === 'secondary'
-      ? 'text-primary font-semibold'
-      : variant === 'destructive'
-        ? 'text-white font-semibold'
+    variant === "secondary"
+      ? "text-primary font-semibold"
+      : variant === "destructive"
+        ? "text-white font-semibold"
         : textOnPrimary;
 
-  const spinnerColor = variant === 'secondary' ? BRAND.primary : '#ffffff';
+  const spinnerColor = variant === "secondary" ? BRAND.primary : "#ffffff";
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
       disabled={isDisabled}
-      className={`${fullWidth ? 'w-full' : ''} rounded-xl items-center justify-center ${variantStyles} ${isDisabled ? 'opacity-70' : ''} ${className ?? ''}`}
+      className={`${fullWidth ? "w-full" : ""} rounded-xl items-center justify-center ${variantStyles} ${isDisabled ? "opacity-70" : ""} ${className ?? ""}`}
       style={[
         {
           minHeight: 48,
           paddingHorizontal: 20,
-          ...(variant === 'primary' && {
-            shadowColor: '#000',
+          ...(variant === "primary" && {
+            shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.12,
             shadowRadius: 8,
@@ -74,4 +80,3 @@ export function BrandButton({
 }
 
 export default BrandButton;
-

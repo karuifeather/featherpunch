@@ -8,7 +8,7 @@ function getLocalTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch {
-    return 'UTC';
+    return "UTC";
   }
 }
 
@@ -20,8 +20,8 @@ const timeZone = getLocalTimeZone();
 export function formatLocalTime(unixSeconds: number): string {
   const date = new Date(unixSeconds * 1000);
   return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true,
     timeZone,
   });
@@ -39,7 +39,7 @@ export function formatLocalDateString(unixSeconds: number): string {
  * Format an ISO date string or Date as local date (e.g. "Mon Dec 2, 2024")
  */
 export function formatLocalDate(isoOrDate: string | Date): string {
-  const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  const date = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
   return date.toLocaleDateString([], { timeZone });
 }
 
@@ -67,10 +67,10 @@ export function getTimeZoneLabel(): string {
   try {
     const formatter = new Intl.DateTimeFormat([], {
       timeZone,
-      timeZoneName: 'short',
+      timeZoneName: "short",
     });
     const parts = formatter.formatToParts(new Date());
-    const tzPart = parts.find((p) => p.type === 'timeZoneName');
+    const tzPart = parts.find((p) => p.type === "timeZoneName");
     return tzPart?.value ?? timeZone;
   } catch {
     return timeZone;

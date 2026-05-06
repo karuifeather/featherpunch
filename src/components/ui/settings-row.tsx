@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { TYPOGRAPHY } from '@/constants/designTokens';
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import * as Haptics from "expo-haptics";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { TYPOGRAPHY } from "@/constants/designTokens";
 
 interface SettingsRowProps {
   icon?: React.ReactNode;
@@ -24,16 +24,16 @@ export function SettingsRow({
   destructive,
   accessibilityLabel,
 }: SettingsRowProps) {
-  const { text, textSecondary, hex } = useThemeColors();
-  const textColor = destructive ? '#EF4444' : hex.text;
-  const subColor = destructive ? 'rgba(239,68,68,0.8)' : hex.textSecondary;
+  const { hex } = useThemeColors();
+  const textColor = destructive ? "#EF4444" : hex.text;
+  const subColor = destructive ? "rgba(239,68,68,0.8)" : hex.textSecondary;
 
   const content = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text
         style={{
           fontSize: TYPOGRAPHY.cardTitle.fontSize,
-          fontWeight: '600',
+          fontWeight: "600",
           color: textColor,
         }}
       >
@@ -57,15 +57,15 @@ export function SettingsRow({
   const row = (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         paddingVertical: 12,
         paddingHorizontal: 4,
         gap: 12,
       }}
     >
       {icon ? (
-        <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
+        <View style={{ width: 24, alignItems: "center" }}>{icon}</View>
       ) : null}
       {content}
       {rightElement ?? null}
