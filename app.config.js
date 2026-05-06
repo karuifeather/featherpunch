@@ -5,6 +5,7 @@ module.exports = {
     scheme: "featherpunch",
     name: "FeatherPunch",
     slug: "featherpunch",
+    version: "2.0.0",
     userInterfaceStyle: "dark",
     backgroundColor: "#0a0a0b",
     icon: "./assets/images/icon.png",
@@ -16,6 +17,7 @@ module.exports = {
     favicon: "./assets/images/favicon.png",
     android: {
       package: "com.featherpunch.app",
+      versionCode: 2,
       softwareKeyboardLayoutMode: "resize",
       navigationBar: { barStyle: "light" },
       adaptiveIcon: {
@@ -29,6 +31,7 @@ module.exports = {
     },
     ios: {
       bundleIdentifier: "com.featherpunch.app",
+      buildNumber: "2",
       backgroundColor: "#0a0a0b",
     },
     web: {

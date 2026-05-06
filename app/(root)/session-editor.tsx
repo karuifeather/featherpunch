@@ -78,8 +78,7 @@ export function SessionEditorContent({
           roleTag: r.role_tag as SessionWithRole["roleTag"],
           roleCurrentHourlyRate: r.role_hourly_rate as number | null,
           roleHourlyRate:
-            (r.hourly_rate_snapshot as number) ??
-            null ??
+            (r.hourly_rate_snapshot as number | null) ??
             (r.role_hourly_rate as number | null),
         };
         setSession(s);
