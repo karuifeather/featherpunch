@@ -578,6 +578,15 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push("/(root)/logs")}
+          style={styles.viewLogsLink}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.viewLogsLinkText, { color: ACCENT.primary }]}>
+            View all logs
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <RolePickerModal
@@ -755,6 +764,16 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  viewLogsLink: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  viewLogsLinkText: {
+    fontSize: 14,
     fontWeight: "600",
   },
 });

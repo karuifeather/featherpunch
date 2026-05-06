@@ -19,6 +19,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="role-stats/[id]" />
+        <Stack.Screen name="logs" />
       </Stack>
 
       {roleEditor !== null && (

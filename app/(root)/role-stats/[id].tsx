@@ -472,11 +472,20 @@ export default function RoleStatsScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : period === '30d' ? (
-                  <Text
-                    style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
-                  >
-                    Older history exists, but historical browsing is not available yet.
-                  </Text>
+                  <View style={{ marginTop: 6, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center' }}>
+                      Older history exists.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/(root)/logs?roleId=${id}`)}
+                      style={{ marginTop: 8, paddingHorizontal: 8, paddingVertical: 4 }}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: ACCENT.primary }}>
+                        View {role.name} logs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : null}
               </>
             )}

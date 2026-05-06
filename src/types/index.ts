@@ -34,6 +34,26 @@ export interface SessionWithRole extends Session {
   roleHourlyRate: number | null;
 }
 
+export interface SessionLogEntry {
+  id: string;
+  roleId: string;
+  roleName: string;
+  roleColor: string;
+  roleIcon: string;
+  startAt: string;
+  endAt: string;
+  durationMs: number;
+  notes: string | null;
+}
+
+export interface CompletedSessionLogSummary {
+  roleId: string;
+  completedSessionCount: number;
+  totalDurationMs: number;
+  hourlyRate: number | null;
+  estimatedEarnings: number | null;
+}
+
 export interface ActiveSession {
   sessionId: string;
   roleId: string;

@@ -2,7 +2,13 @@ import * as SQLite from "expo-sqlite";
 import { getDb } from "./database";
 import { generateId } from "@/utils/uuid";
 import { startOfLocalDay, startOfNextLocalDay } from "@/utils/localDate";
-import type { Session, SessionWithRole, SessionSource } from "@/types";
+import type {
+  CompletedSessionLogSummary,
+  Session,
+  SessionLogEntry,
+  SessionSource,
+  SessionWithRole,
+} from "@/types";
 
 export type RoleHistorySummary = {
   roleId: string;
@@ -180,6 +186,135 @@ export async function getAllSessions(): Promise<SessionWithRole[]> {
   const db = await getDb();
   const rows = await db.getAllAsync(`${JOIN_QUERY} ORDER BY s.start_at DESC`);
   return rows.map((r) => rowToSessionWithRole(r as Record<string, unknown>));
+}
+
+export async function getCompletedSessionLogs(
+  options: {
+    roleId?: string;
+    startIso?: string;
+    endExclusiveIso?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<SessionLogEntry[]> {
+  const db = await getDb();
+  const where: string[] = ["s.end_at IS NOT NULL"];
+  const params: SQLite.SQLiteBindValue[] = [];
+
+  if (options.roleId) {
+    where.push("s.role_id = ?");
+    params.push(options.roleId);
+  }
+  if (options.startIso) {
+    where.push("s.start_at >= ?");
+    params.push(options.startIso);
+  }
+  if (options.endExclusiveIso) {
+    where.push("s.start_at < ?");
+    params.push(options.endExclusiveIso);
+  }
+
+  const limit = options.limit ?? 100;
+  const offset = options.offset ?? 0;
+  params.push(limit, offset);
+
+  const rows = await db.getAllAsync(
+    `${JOIN_QUERY}
+     WHERE ${where.join(" AND ")}
+     ORDER BY s.start_at DESC
+     LIMIT ? OFFSET ?`,
+    params,
+  );
+
+  return rows.map((row) => {
+    const mapped = rowToSessionWithRole(row as Record<string, unknown>);
+    return {
+      id: mapped.id,
+      roleId: mapped.roleId,
+      roleName: mapped.roleName,
+      roleColor: mapped.roleColor,
+      roleIcon: mapped.roleIcon,
+      startAt: mapped.startAt,
+      endAt: mapped.endAt ?? mapped.startAt,
+      durationMs:
+        mapped.durationMs ??
+        Math.max(
+          0,
+          new Date(mapped.endAt ?? mapped.startAt).getTime() -
+            new Date(mapped.startAt).getTime(),
+        ),
+      notes: mapped.notes,
+    };
+  });
+}
+
+export async function getRolesWithCompletedSessionHistory(): Promise<
+  Array<{
+    id: string;
+    name: string;
+  }>
+> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    id: string;
+    name: string;
+  }>(
+    `SELECT DISTINCT r.id, r.name
+     FROM roles r
+     JOIN sessions s ON s.role_id = r.id
+     WHERE s.end_at IS NOT NULL
+     ORDER BY r.name COLLATE NOCASE ASC`,
+  );
+  return rows;
+}
+
+export async function getCompletedSessionLogSummary(options: {
+  roleId: string;
+  startIso?: string;
+  endExclusiveIso?: string;
+}): Promise<CompletedSessionLogSummary> {
+  const db = await getDb();
+  const where: string[] = ["s.role_id = ?", "s.end_at IS NOT NULL"];
+  const params: SQLite.SQLiteBindValue[] = [options.roleId];
+
+  if (options.startIso) {
+    where.push("s.start_at >= ?");
+    params.push(options.startIso);
+  }
+  if (options.endExclusiveIso) {
+    where.push("s.start_at < ?");
+    params.push(options.endExclusiveIso);
+  }
+
+  const row = await db.getFirstAsync<{
+    completed_session_count: number | null;
+    total_duration_ms: number | null;
+    role_hourly_rate: number | null;
+  }>(
+    `SELECT
+      COUNT(*) AS completed_session_count,
+      COALESCE(SUM(s.duration_ms), 0) AS total_duration_ms,
+      r.hourly_rate AS role_hourly_rate
+    FROM sessions s
+    JOIN roles r ON r.id = s.role_id
+    WHERE ${where.join(" AND ")}`,
+    params,
+  );
+
+  const completedSessionCount = Number(row?.completed_session_count ?? 0);
+  const totalDurationMs = Number(row?.total_duration_ms ?? 0);
+  const hourlyRate =
+    row?.role_hourly_rate == null ? null : Number(row.role_hourly_rate);
+  const estimatedEarnings =
+    hourlyRate == null ? null : (totalDurationMs / 3_600_000) * hourlyRate;
+
+  return {
+    roleId: options.roleId,
+    completedSessionCount,
+    totalDurationMs,
+    hourlyRate,
+    estimatedEarnings,
+  };
 }
 
 /** Returns sessions for the given role IDs. Empty roleIds = empty array. */

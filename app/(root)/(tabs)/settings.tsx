@@ -8,7 +8,7 @@ import {
   AppStateStatus,
   ActivityIndicator,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import * as Location from "expo-location";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
@@ -126,6 +126,7 @@ function GroupCard({ children }: { children: React.ReactNode }) {
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const dispatch = useDispatch();
   const theme = useSelector((state: RootState) => state.settings.theme);
   const { bg, hex } = useThemeColors();
@@ -328,6 +329,12 @@ export default function SettingsScreen() {
 
         <SectionHeader label="Data" />
         <GroupCard>
+          <View style={{ borderBottomWidth: 1, borderBottomColor: hex.border }}>
+            <SettingsRow
+              label="View all logs"
+              onPress={() => router.push("/(root)/logs")}
+            />
+          </View>
           <View style={{ borderBottomWidth: 1, borderBottomColor: hex.border }}>
             <SettingsRow
               label="Export role log"
