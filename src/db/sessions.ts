@@ -2,8 +2,13 @@ import * as SQLite from "expo-sqlite";
 import { getDb } from "./database";
 import { generateId } from "@/utils/uuid";
 import { startOfLocalDay, startOfNextLocalDay } from "@/utils/localDate";
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+} from "@/utils/dateRanges";
 import type {
   CompletedSessionLogSummary,
+  RoleListSummary,
   Session,
   SessionLogEntry,
   SessionSource,
@@ -362,6 +367,105 @@ export async function getSessionsByRoleIds(
     roleIds,
   );
   return rows.map((r) => rowToSessionWithRole(r as Record<string, unknown>));
+}
+
+export async function getRoleListSummaries(
+  roleIds: string[],
+  options?: {
+    now?: Date;
+  },
+): Promise<RoleListSummary[]> {
+  if (roleIds.length === 0) return [];
+  const db = await getDb();
+  const now = options?.now ?? new Date();
+  const last7Range = getRollingRange("last7Days", now);
+  const last30Range = getRollingRange("last30Days", now);
+  const last7Bounds = getRollingRangeQueryBounds(last7Range);
+  const last30Bounds = getRollingRangeQueryBounds(last30Range);
+  const placeholders = roleIds.map(() => "?").join(",");
+
+  const rows = await db.getAllAsync<{
+    role_id: string;
+    active_started_at: string | null;
+    last_completed_session_at: string | null;
+    lifetime_completed_sessions: number | null;
+    last7_duration_ms: number | null;
+    last30_duration_ms: number | null;
+    last30_completed_sessions: number | null;
+  }>(
+    `SELECT
+      s.role_id AS role_id,
+      MAX(CASE WHEN s.end_at IS NULL THEN s.start_at END) AS active_started_at,
+      MAX(CASE WHEN s.end_at IS NOT NULL THEN s.start_at END) AS last_completed_session_at,
+      SUM(CASE WHEN s.end_at IS NOT NULL THEN 1 ELSE 0 END) AS lifetime_completed_sessions,
+      COALESCE(
+        SUM(
+          CASE
+            WHEN s.end_at IS NOT NULL AND s.start_at >= ? AND s.start_at < ? THEN COALESCE(s.duration_ms, 0)
+            ELSE 0
+          END
+        ),
+        0
+      ) AS last7_duration_ms,
+      COALESCE(
+        SUM(
+          CASE
+            WHEN s.end_at IS NOT NULL AND s.start_at >= ? AND s.start_at < ? THEN COALESCE(s.duration_ms, 0)
+            ELSE 0
+          END
+        ),
+        0
+      ) AS last30_duration_ms,
+      SUM(
+        CASE
+          WHEN s.end_at IS NOT NULL AND s.start_at >= ? AND s.start_at < ? THEN 1
+          ELSE 0
+        END
+      ) AS last30_completed_sessions
+    FROM sessions s
+    WHERE s.role_id IN (${placeholders})
+    GROUP BY s.role_id`,
+    [
+      last7Bounds.startIso,
+      last7Bounds.endExclusiveIso,
+      last30Bounds.startIso,
+      last30Bounds.endExclusiveIso,
+      last30Bounds.startIso,
+      last30Bounds.endExclusiveIso,
+      ...roleIds,
+    ],
+  );
+
+  const byRoleId = new Map(
+    rows.map((row) => [
+      row.role_id,
+      {
+        roleId: row.role_id,
+        isActive: row.active_started_at != null,
+        activeStartedAt: row.active_started_at ?? null,
+        lastCompletedSessionAt: row.last_completed_session_at ?? null,
+        lifetimeCompletedSessions: Number(row.lifetime_completed_sessions ?? 0),
+        last7DurationMs: Number(row.last7_duration_ms ?? 0),
+        last30DurationMs: Number(row.last30_duration_ms ?? 0),
+        last30CompletedSessions: Number(row.last30_completed_sessions ?? 0),
+      } satisfies RoleListSummary,
+    ]),
+  );
+
+  return roleIds.map((roleId) => {
+    return (
+      byRoleId.get(roleId) ?? {
+        roleId,
+        isActive: false,
+        activeStartedAt: null,
+        lastCompletedSessionAt: null,
+        lifetimeCompletedSessions: 0,
+        last7DurationMs: 0,
+        last30DurationMs: 0,
+        last30CompletedSessions: 0,
+      }
+    );
+  });
 }
 
 export async function updateSession(
