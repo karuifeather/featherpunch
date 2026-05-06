@@ -1,5 +1,5 @@
-export type RoleTag = 'me' | 'other';
-export type SessionSource = 'manual' | 'import' | 'edited';
+export type RoleTag = "me" | "other";
+export type SessionSource = "manual" | "import" | "edited";
 
 export interface Role {
   id: string;
@@ -81,12 +81,18 @@ export interface AnalyticsSummary {
 export interface InsightCard {
   id: string;
   text: string;
-  type: 'neutral' | 'positive' | 'reflective' | 'warning';
+  type: "neutral" | "positive" | "reflective" | "warning";
 }
 
 export type AppSettingKey =
-  | 'week_start_day'
-  | 'currency'
-  | 'privacy_lock'
-  | 'export_format'
-  | 'onboarding_completed';
+  | "week_start_day"
+  | "currency"
+  | "privacy_lock"
+  | "export_format"
+  | "onboarding_completed"
+  | "last_engaged_role_id"
+  | "weather_latitude"
+  | "weather_longitude"
+  | "weather_label"
+  | "weather_location_prompted"
+  | "weather_temp_unit";

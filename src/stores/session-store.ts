@@ -1,6 +1,7 @@
-import { create } from 'zustand';
-import type { ActiveSession, SessionWithRole } from '@/types';
-import * as sessionsDb from '@/db/sessions';
+import { create } from "zustand";
+import type { ActiveSession, SessionWithRole } from "@/types";
+import * as sessionsDb from "@/db/sessions";
+import { setSetting } from "@/db/settings";
 
 interface SessionStore {
   active: ActiveSession | null;
@@ -46,6 +47,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await sessionsDb.endSession(active.sessionId);
     }
     await sessionsDb.startSession(roleId);
+    await setSetting("last_engaged_role_id", roleId);
     const newActive = await sessionsDb.getActiveSession();
     set({
       active: newActive ? sessionWithRoleToActive(newActive) : null,
@@ -56,6 +58,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { active } = get();
     if (!active) return;
     await sessionsDb.endSession(active.sessionId);
+    await setSetting("last_engaged_role_id", active.roleId);
     set({ active: null });
   },
 
@@ -63,6 +66,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { active } = get();
     if (!active) return;
     await sessionsDb.switchSession(active.sessionId, newRoleId);
+    await setSetting("last_engaged_role_id", newRoleId);
     const newActive = await sessionsDb.getActiveSession();
     set({
       active: newActive ? sessionWithRoleToActive(newActive) : null,
