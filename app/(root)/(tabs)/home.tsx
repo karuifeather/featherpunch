@@ -116,6 +116,7 @@ export default function HomeScreen() {
       if (
         !force &&
         weatherCache != null &&
+        weatherCache.weather != null &&
         Date.now() - weatherCache.fetchedAtMs < WEATHER_REFRESH_INTERVAL_MS
       ) {
         setWeather(weatherCache.weather);
