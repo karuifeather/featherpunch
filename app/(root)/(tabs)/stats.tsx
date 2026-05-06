@@ -5,10 +5,9 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
 import { computeAnalytics } from '@/services/analytics';
 import { hasEnoughDataForInsights } from '@/services/insights';
-import { MeOtherRing } from '@/components/me-other-ring';
 import { OverlayHeader } from '@/components/overlay-header';
 import { EdgeToEdgeScreen } from '@/components/screen-container';
-import { RADIUS, TYPOGRAPHY, TAG_COLORS } from '@/constants/designTokens';
+import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { formatDurationShort } from '@/utils/formatTime';
 import { getSessionsByDateRange } from '@/db/sessions';
 import type { SessionWithRole } from '@/types';
@@ -169,7 +168,7 @@ export default function StatsScreen() {
           </View>
         ) : (
           <>
-            {/* Hero: Life split — single primary chart */}
+            {/* Hero */}
             <View
               style={{
                 backgroundColor: hex.surface,
@@ -188,23 +187,11 @@ export default function StatsScreen() {
                   marginBottom: 12,
                 }}
               >
-                Life split
+                Total time
               </Text>
-              <MeOtherRing mePercent={analytics.mePercent} size={120} strokeWidth={8} />
-              <View style={{ flexDirection: 'row', gap: 32, marginTop: 16 }}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: hex.text }}>
-                    {formatDurationShort(analytics.meMs)}
-                  </Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: TAG_COLORS.me }}>For me</Text>
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: hex.text }}>
-                    {formatDurationShort(analytics.otherMs)}
-                  </Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: TAG_COLORS.other }}>For others</Text>
-                </View>
-              </View>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: hex.text }}>
+                {formatDurationShort(analytics.totalMs)}
+              </Text>
             </View>
 
             {/* Time by role — only when multiple roles (avoid over-visualizing small data) */}

@@ -18,12 +18,6 @@ export const SEMANTIC = {
   warning: '#f59e0b',
 } as const;
 
-/** Role tag colors — "For me" vs "For others". Use for dots, labels, and tag UI across the app. */
-export const TAG_COLORS = {
-  me: '#7c6ba8',
-  other: '#b8915e',
-} as const;
-
 /** Dark mode — near-black, deep charcoal, premium */
 export const DARK_HEX = {
   /** Near-black page background */

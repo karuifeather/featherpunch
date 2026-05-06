@@ -31,9 +31,8 @@ const ROW_PADDING_H = 16;
 const ICON_BG_SIZE = 40;
 
 function roleSubtitle(role: Role): string {
-  const ownership = role.tag === 'me' ? 'For me' : 'For others';
-  if (role.hourlyRate != null) return `${ownership} • $${role.hourlyRate}/hr`;
-  return ownership;
+  if (role.hourlyRate != null) return `$${role.hourlyRate}/hr`;
+  return 'Role';
 }
 
 export default function RolesScreen() {

@@ -3,8 +3,6 @@ import { generateId } from '@/utils/uuid';
 
 const MIN_LOGS_FOR_INSIGHTS = 3;
 const MIN_DAYS_FOR_TRENDS = 2;
-const MIN_TOTAL_MS_FOR_PERCENT = 5 * 60000; // 5 minutes
-
 function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
   if (totalMin < 60) return `${totalMin}m`;
@@ -43,17 +41,9 @@ export function generateTodayInsights(
 
   const cards: InsightCard[] = [];
 
-  if (analytics.totalMs >= MIN_TOTAL_MS_FOR_PERCENT && analytics.mePercent >= 70) {
-    cards.push({
-      id: generateId(),
-      text: 'Personal time today: ' + formatDuration(analytics.meMs),
-      type: 'positive',
-    });
-  }
-
   if (analytics.mostFrequentRole && completed.length >= 2) {
     const top = analytics.roleStats[0];
-    if (top && top.totalMs >= MIN_TOTAL_MS_FOR_PERCENT) {
+    if (top && top.totalMs >= 5 * 60000) {
       cards.push({
         id: generateId(),
         text: `Most time today: ${top.roleName}`,
@@ -65,9 +55,7 @@ export function generateTodayInsights(
   return cards.slice(0, 2);
 }
 
-/** Weekly insights — thresholds: min 3 logs, min 2 days for trends.
- * Does not include "Personal time" (redundant with Life split on Insights screen).
- */
+/** Weekly insights — thresholds: min 3 logs, min 2 days for trends. */
 export function generateWeeklyInsights(analytics: AnalyticsSummary): InsightCard[] {
   const { roleStats, sessionCount } = analytics;
 
@@ -77,7 +65,7 @@ export function generateWeeklyInsights(analytics: AnalyticsSummary): InsightCard
 
   if (roleStats.length >= 2) {
     const top = roleStats[0];
-    if (top && top.totalMs >= MIN_TOTAL_MS_FOR_PERCENT) {
+    if (top && top.totalMs >= 5 * 60000) {
       cards.push({
         id: generateId(),
         text: `Most time: ${top.roleName} (${formatDuration(top.totalMs)})`,

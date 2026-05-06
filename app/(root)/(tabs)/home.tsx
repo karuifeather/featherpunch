@@ -6,7 +6,6 @@ import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
 import { useRoles } from '@/hooks/useRoles';
 import { useTodaySessions } from '@/hooks/useSessions';
 import { useSessionStore } from '@/stores/session-store';
-import { computeTodaySplit } from '@/services/analytics';
 import { computeAnalytics } from '@/services/analytics';
 import { RoleIcon } from '@/components/role-icon';
 import { ActiveRoleCard } from '@/components/active-role-card';
@@ -73,7 +72,6 @@ export default function HomeScreen() {
     }, [active, todaySessions, selectedRoleId])
   );
 
-  const todaySplit = computeTodaySplit(todaySessions);
   const analytics = computeAnalytics(todaySessions);
   const activeRoles = roles.filter((r) => !r.isArchived);
 
@@ -230,21 +228,21 @@ export default function HomeScreen() {
         <View style={[styles.summaryPanel, { backgroundColor: hex.surface }]}>
           <Text style={[styles.summaryTitle, { color: hex.textTertiary }]}>Today at a glance</Text>
           <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>For me</Text>
+            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>Total time</Text>
             <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {formatDurationShort(todaySplit.meMs)}
+              {formatDurationShort(analytics.totalMs)}
             </Text>
           </View>
           <View style={[styles.summaryRow, { borderBottomColor: hex.border }]}>
-            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>For others</Text>
+            <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>Punch-ins</Text>
             <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {formatDurationShort(todaySplit.otherMs)}
+              {analytics.sessionCount}
             </Text>
           </View>
           <View style={styles.summaryRowLast}>
             <Text style={[styles.summaryLabel, { color: hex.textTertiary }]}>Most time today</Text>
             <Text style={[styles.summaryValue, { color: hex.text }]}>
-              {analytics.mostFrequentRole && todaySplit.totalMs > 0
+              {analytics.mostFrequentRole && analytics.totalMs > 0
                 ? analytics.mostFrequentRole
                 : '—'}
             </Text>

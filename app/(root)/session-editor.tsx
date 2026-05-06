@@ -14,7 +14,7 @@ import { DetailOverlayHeader } from '@/components/overlay-header';
 import { RoleIcon } from '@/components/role-icon';
 import { DateTimePickerModal } from '@/components/date-time-picker-modal';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { RADIUS, TYPOGRAPHY, TAG_COLORS } from '@/constants/designTokens';
+import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { ACCENT, SEMANTIC } from '@/constants/colors';
 import { getDb } from '@/db/database';
 import { updateSession, deleteSession } from '@/db/sessions';
@@ -156,26 +156,6 @@ export function SessionEditorContent({ id, onClose }: SessionEditorContentProps)
           <Text style={{ fontSize: 28, fontWeight: '200', color: hex.text, marginTop: 4 }}>
             {duration}
           </Text>
-          <View
-            style={{
-              marginTop: 10,
-              paddingHorizontal: 10,
-              paddingVertical: 3,
-              borderRadius: RADIUS.pill,
-              backgroundColor: `${TAG_COLORS[session.roleTag]}20`,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: TAG_COLORS[session.roleTag],
-                textTransform: 'uppercase',
-              }}
-            >
-              {session.roleTag === 'me' ? 'For me' : 'For others'}
-            </Text>
-          </View>
         </View>
 
         <View

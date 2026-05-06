@@ -10,7 +10,6 @@ import { getRoleById } from '@/db/roles';
 import { getSessionsByRoleAndDateRange } from '@/db/sessions';
 import { computeAnalytics, computeRoleTimeSeries } from '@/services/analytics';
 import { RoleIcon } from '@/components/role-icon';
-import { TagIndicator } from '@/components/tag-indicator';
 import { EdgeToEdgeScreen } from '@/components/screen-container';
 import { ACCENT, RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
@@ -289,10 +288,8 @@ export default function RoleStatsScreen() {
   }
   const last7 = rangeTotals['7d'];
   const last30 = rangeTotals['30d'];
-  const show7d = period === '30d' || last7 !== last30;
-  const show30d = period === '7d' || last7 !== last30;
-  if (show7d) overviewRows.push({ label: 'Last 7 days', value: formatDurationShort(last7) });
-  if (show30d) overviewRows.push({ label: 'Last 30 days', value: formatDurationShort(last30) });
+  overviewRows.push({ label: 'Last 7 days', value: formatDurationShort(last7) });
+  overviewRows.push({ label: 'Last 30 days', value: formatDurationShort(last30) });
   if (mostRecentDayActive) {
     overviewRows.push({ label: 'Most recent day active', value: mostRecentDayActive });
   }
@@ -360,15 +357,12 @@ export default function RoleStatsScreen() {
             <Text style={{ ...TYPOGRAPHY.sectionTitle, color: hex.text }} numberOfLines={1}>
               {role.name}
             </Text>
-            <View style={{ marginTop: 4 }}>
-              <TagIndicator tag={role.tag} showLabel size="sm" />
-            </View>
             <Text
               style={{
                 fontSize: 15,
                 fontWeight: '600',
                 color: hex.textSecondary,
-                marginTop: 6,
+                marginTop: 4,
                 fontVariant: ['tabular-nums'] as const,
               }}
             >

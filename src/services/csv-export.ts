@@ -13,10 +13,10 @@ function escapeCsv(val: string | number | null | undefined): string {
 
 /** Used internally only — not exposed as standalone export. */
 export function rolesToCsv(roles: Role[]): string {
-  const header = 'id,name,tag,hourly_rate,color,icon,archived,created_at,updated_at';
+  const header = 'id,name,hourly_rate,color,icon,archived,created_at,updated_at';
   const rows = roles.map((r) =>
     [
-      r.id, escapeCsv(r.name), r.tag, r.hourlyRate,
+      r.id, escapeCsv(r.name), r.hourlyRate,
       r.color, r.icon, r.isArchived ? '1' : '0',
       r.createdAt, r.updatedAt,
     ].join(',')
@@ -28,7 +28,6 @@ export type SessionExportFieldKey =
   | 'id'
   | 'role_id'
   | 'role_name'
-  | 'tag'
   | 'start_at'
   | 'end_at'
   | 'duration_minutes'
@@ -41,7 +40,6 @@ export const SESSION_EXPORT_FIELDS: { key: SessionExportFieldKey; label: string 
   { key: 'id', label: 'Session ID' },
   { key: 'role_id', label: 'Role ID' },
   { key: 'role_name', label: 'Role name' },
-  { key: 'tag', label: 'Tag (me/other)' },
   { key: 'start_at', label: 'Start time' },
   { key: 'end_at', label: 'End time' },
   { key: 'duration_minutes', label: 'Duration (min)' },
@@ -56,7 +54,6 @@ function getSessionCell(s: SessionWithRole, key: SessionExportFieldKey): string 
     case 'id': return s.id;
     case 'role_id': return s.roleId;
     case 'role_name': return escapeCsv(s.roleName);
-    case 'tag': return s.roleTag;
     case 'start_at': return s.startAt;
     case 'end_at': return s.endAt ?? '';
     case 'duration_minutes':
