@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AppState, AppStateStatus } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
@@ -29,13 +29,33 @@ export default function HomeScreen() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [confirmClockInRole, setConfirmClockInRole] = useState<Role | null>(null);
   const [confirmClockOut, setConfirmClockOut] = useState(false);
+  const refreshHomeData = useCallback(() => {
+    refreshSessions();
+    loadActiveSession();
+  }, [refreshSessions, loadActiveSession]);
+
+  useEffect(() => {
+    refreshHomeData();
+  }, [refreshHomeData]);
 
   useFocusEffect(
     useCallback(() => {
-      refreshSessions();
-      loadActiveSession();
-    }, [refreshSessions, loadActiveSession])
+      refreshHomeData();
+    }, [refreshHomeData])
   );
+
+  useEffect(() => {
+    let lastAppState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
+      if (isReturningToForeground) {
+        refreshHomeData();
+      }
+      lastAppState = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [refreshHomeData]);
 
   // If active session references a deleted role, clear it to avoid FK errors and ghost UI
   useEffect(() => {

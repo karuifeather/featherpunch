@@ -1,10 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,12 +47,32 @@ export default function RolesScreen() {
     role: Role;
     action: 'archive' | 'delete';
   } | null>(null);
+  const refreshRolesData = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    refreshRolesData();
+  }, [refreshRolesData]);
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
-    }, [refresh])
+      refreshRolesData();
+    }, [refreshRolesData])
   );
+
+  useEffect(() => {
+    let lastAppState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
+      if (isReturningToForeground) {
+        refreshRolesData();
+      }
+      lastAppState = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [refreshRolesData]);
 
   const activeRoles = roles.filter((r) => !r.isArchived);
   const archivedRoles = roles.filter((r) => r.isArchived);

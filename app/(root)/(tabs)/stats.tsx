@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useEdgeToEdgeInsets } from '@/hooks/useEdgeToEdgeInsets';
@@ -29,13 +29,33 @@ export default function StatsScreen() {
   const { tabBarHeight, overlayHeaderHeight } = useEdgeToEdgeInsets();
   const [period, setPeriod] = useState<Period>('7d');
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
+  const refreshStatsData = useCallback(() => {
+    const { start, end } = getDateRange(period);
+    getSessionsByDateRange(start, end).then(setSessions);
+  }, [period]);
+
+  useEffect(() => {
+    refreshStatsData();
+  }, [refreshStatsData]);
 
   useFocusEffect(
     useCallback(() => {
-      const { start, end } = getDateRange(period);
-      getSessionsByDateRange(start, end).then(setSessions);
-    }, [period])
+      refreshStatsData();
+    }, [refreshStatsData])
   );
+
+  useEffect(() => {
+    let lastAppState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
+      if (isReturningToForeground) {
+        refreshStatsData();
+      }
+      lastAppState = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [refreshStatsData]);
 
   const analytics = useMemo(() => computeAnalytics(sessions), [sessions]);
   const enoughForInsights = hasEnoughDataForInsights(sessions);

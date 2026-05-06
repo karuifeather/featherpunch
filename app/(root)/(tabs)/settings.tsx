@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ScrollView, Text, View, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ScrollView, Text, View, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
@@ -130,8 +131,34 @@ export default function SettingsScreen() {
   const theme = useSelector((state: RootState) => state.settings.theme);
   const { bg, hex } = useThemeColors();
   const { overlayHeaderHeight, tabBarHeight } = useEdgeToEdgeInsets();
-  const { roles } = useRoles(true);
+  const { roles, refresh } = useRoles(true);
   const [exportModalVisible, setExportModalVisible] = useState(false);
+  const refreshSettingsData = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    refreshSettingsData();
+  }, [refreshSettingsData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshSettingsData();
+    }, [refreshSettingsData])
+  );
+
+  useEffect(() => {
+    let lastAppState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const isReturningToForeground = lastAppState.match(/inactive|background/) && nextAppState === 'active';
+      if (isReturningToForeground) {
+        refreshSettingsData();
+      }
+      lastAppState = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [refreshSettingsData]);
 
   return (
     <View className={`flex-1 ${bg}`}>
