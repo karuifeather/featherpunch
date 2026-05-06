@@ -1,4 +1,5 @@
 import type { SessionWithRole, RoleStat, AnalyticsSummary } from '@/types';
+import { getRollingRange, getRollingRangeQueryBounds } from '@/utils/dateRanges';
 
 export function computeAnalytics(sessions: SessionWithRole[]): AnalyticsSummary {
   const completed = sessions.filter((s) => s.endAt !== null);
@@ -91,12 +92,10 @@ export function computeRoleTimeSeries(
     dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + dur);
   }
 
-  const days = period === '7d' ? 7 : 30;
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - days);
+  const rollingRange = getRollingRange(period === '7d' ? 'last7Days' : 'last30Days');
+  const bounds = getRollingRangeQueryBounds(rollingRange);
+  const start = new Date(bounds.startIso);
+  const end = new Date(bounds.endExclusiveIso);
 
   const result: { dateKey: string; totalMs: number; label: string }[] = [];
   const today = new Date();

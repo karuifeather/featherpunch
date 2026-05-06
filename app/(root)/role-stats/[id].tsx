@@ -13,6 +13,11 @@ import { RoleIcon } from '@/components/role-icon';
 import { EdgeToEdgeScreen } from '@/components/screen-container';
 import { ACCENT, RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { formatDurationShort, formatTime, getDayLabel } from '@/utils/formatTime';
+import {
+  getRollingRange,
+  getRollingRangeQueryBounds,
+  type RollingRangePreset,
+} from '@/utils/dateRanges';
 import type { Role } from '@/types';
 import type { SessionWithRole } from '@/types';
 
@@ -43,13 +48,8 @@ function getNiceChartMax(maxBarValueHours: number): number {
 
 type Period = '7d' | '30d';
 
-function getDateRange(period: Period): { start: string; end: string } {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const days = period === '7d' ? 7 : 30;
-  const start = new Date(end);
-  start.setDate(start.getDate() - days);
-  return { start: start.toISOString(), end: end.toISOString() };
+function getPresetFromPeriod(period: Period): RollingRangePreset {
+  return period === '7d' ? 'last7Days' : 'last30Days';
 }
 
 /** Start of current year and end of today (ISO). For YTD and range fetches. */
@@ -112,8 +112,11 @@ function refetchSessions(
   setSessions: (s: SessionWithRole[]) => void,
   setSessionsForRanges: (s: SessionWithRole[]) => void
 ) {
-  const { start, end } = getDateRange(period);
-  getSessionsByRoleAndDateRange(roleId, start, end).then(setSessions);
+  const selectedRange = getRollingRange(getPresetFromPeriod(period));
+  const selectedBounds = getRollingRangeQueryBounds(selectedRange);
+  getSessionsByRoleAndDateRange(roleId, selectedBounds.startIso, selectedBounds.endExclusiveIso).then(
+    setSessions
+  );
   const ytd = getYearToDateRange();
   getSessionsByRoleAndDateRange(roleId, ytd.start, ytd.end).then(setSessionsForRanges);
 }
@@ -147,20 +150,16 @@ export default function RoleStatsScreen() {
 
   const rangeTotals = useMemo(() => {
     const now = new Date();
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
-    const start7 = new Date(now); start7.setDate(start7.getDate() - 7);
-    const start14 = new Date(now); start14.setDate(start14.getDate() - 14);
-    const start30 = new Date(now); start30.setDate(start30.getDate() - 30);
-    const start60 = new Date(now); start60.setDate(start60.getDate() - 60);
-    const start90 = new Date(now); start90.setDate(start90.getDate() - 90);
+    const last7 = getRollingRangeQueryBounds(getRollingRange('last7Days', now));
+    const last30 = getRollingRangeQueryBounds(getRollingRange('last30Days', now));
+    const last90 = getRollingRangeQueryBounds(getRollingRange('last90Days', now));
     const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString();
+    const endExclusive = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
     return {
-      '7d': totalMsInRange(sessionsForRanges, start7.toISOString(), endOfToday),
-      '14d': totalMsInRange(sessionsForRanges, start14.toISOString(), endOfToday),
-      '30d': totalMsInRange(sessionsForRanges, start30.toISOString(), endOfToday),
-      '60d': totalMsInRange(sessionsForRanges, start60.toISOString(), endOfToday),
-      '90d': totalMsInRange(sessionsForRanges, start90.toISOString(), endOfToday),
-      ytd: totalMsInRange(sessionsForRanges, ytdStart, endOfToday),
+      '7d': totalMsInRange(sessionsForRanges, last7.startIso, last7.endExclusiveIso),
+      '30d': totalMsInRange(sessionsForRanges, last30.startIso, last30.endExclusiveIso),
+      '90d': totalMsInRange(sessionsForRanges, last90.startIso, last90.endExclusiveIso),
+      ytd: totalMsInRange(sessionsForRanges, ytdStart, endExclusive),
     };
   }, [sessionsForRanges]);
 
@@ -169,9 +168,10 @@ export default function RoleStatsScreen() {
 
   // Chart data: use sessions (period fetch) when available so chart shows immediately; else use sessionsForRanges filtered to period
   const sessionsInPeriodFromRanges = useMemo(() => {
-    const { start, end } = getDateRange(period);
-    const startMs = new Date(start).getTime();
-    const endMs = new Date(end).getTime();
+    const selectedRange = getRollingRange(getPresetFromPeriod(period));
+    const selectedBounds = getRollingRangeQueryBounds(selectedRange);
+    const startMs = new Date(selectedBounds.startIso).getTime();
+    const endMs = new Date(selectedBounds.endExclusiveIso).getTime();
     return sessionsForRanges.filter((s) => {
       const t = new Date(s.startAt).getTime();
       return t >= startMs && t < endMs;
@@ -228,8 +228,8 @@ export default function RoleStatsScreen() {
   const roleStat = analytics.roleStats[0];
   const totalMs = roleStat?.totalMs ?? 0;
 
-  const periodLabel = period === '7d' ? 'this week' : 'this month';
-  const primaryStat = `${formatDurationShort(totalMs)} ${periodLabel}`;
+  const selectedRange = useMemo(() => getRollingRange(getPresetFromPeriod(period)), [period]);
+  const primaryStat = `${formatDurationShort(totalMs)} in ${selectedRange.label.toLowerCase()}`;
 
   const sessionsNewestFirst = useMemo(
     () => [...sessions].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()),
@@ -288,8 +288,14 @@ export default function RoleStatsScreen() {
   }
   const last7 = rangeTotals['7d'];
   const last30 = rangeTotals['30d'];
-  overviewRows.push({ label: 'Last 7 days', value: formatDurationShort(last7) });
-  overviewRows.push({ label: 'Last 30 days', value: formatDurationShort(last30) });
+  overviewRows.push({
+    label: getRollingRange('last7Days').label,
+    value: formatDurationShort(last7),
+  });
+  overviewRows.push({
+    label: getRollingRange('last30Days').label,
+    value: formatDurationShort(last30),
+  });
   if (mostRecentDayActive) {
     overviewRows.push({ label: 'Most recent day active', value: mostRecentDayActive });
   }
@@ -402,11 +408,20 @@ export default function RoleStatsScreen() {
                   textAlign: 'center',
                 }}
               >
-                {p === '7d' ? 'Weekly' : 'Monthly'}
+                {p === '7d' ? '7 days' : '30 days'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+        <Text
+          style={{
+            ...TYPOGRAPHY.metadata,
+            color: hex.textTertiary,
+            marginBottom: 16,
+          }}
+        >
+          {selectedRange.label} · {selectedRange.displayRange}
+        </Text>
 
         {/* 3. Trend section */}
         {sessions.length === 0 ? (
@@ -421,7 +436,7 @@ export default function RoleStatsScreen() {
             }}
           >
             <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
-              No time in this role for the selected period
+              No time in this role for {selectedRange.label.toLowerCase()}
             </Text>
             <Text
               style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}
@@ -441,7 +456,7 @@ export default function RoleStatsScreen() {
             }}
           >
             <Text style={{ ...TYPOGRAPHY.body, color: hex.textSecondary, textAlign: 'center' }}>
-              Not enough time yet for a {period === '7d' ? 'weekly' : 'monthly'} trend
+              Not enough time yet for a {selectedRange.shortLabel} trend
             </Text>
             <Text
               style={{ fontSize: 14, color: hex.textTertiary, textAlign: 'center', marginTop: 6 }}

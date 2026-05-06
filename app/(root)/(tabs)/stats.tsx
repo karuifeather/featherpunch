@@ -9,18 +9,16 @@ import { OverlayHeader } from '@/components/overlay-header';
 import { EdgeToEdgeScreen } from '@/components/screen-container';
 import { RADIUS, TYPOGRAPHY } from '@/constants/designTokens';
 import { formatDurationShort } from '@/utils/formatTime';
+import { getRollingRange, getRollingRangeQueryBounds, type RollingRangePreset } from '@/utils/dateRanges';
 import { getSessionsByDateRange } from '@/db/sessions';
 import type { SessionWithRole } from '@/types';
 
 type Period = '7d' | '30d' | '90d';
 
-function getDateRange(period: Period): { start: string; end: string } {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-  const start = new Date(end);
-  start.setDate(start.getDate() - days);
-  return { start: start.toISOString(), end: end.toISOString() };
+function getPresetFromPeriod(period: Period): RollingRangePreset {
+  if (period === '7d') return 'last7Days';
+  if (period === '30d') return 'last30Days';
+  return 'last90Days';
 }
 
 export default function StatsScreen() {
@@ -29,8 +27,9 @@ export default function StatsScreen() {
   const [period, setPeriod] = useState<Period>('7d');
   const [sessions, setSessions] = useState<SessionWithRole[]>([]);
   const refreshStatsData = useCallback(() => {
-    const { start, end } = getDateRange(period);
-    getSessionsByDateRange(start, end).then(setSessions);
+    const range = getRollingRange(getPresetFromPeriod(period));
+    const bounds = getRollingRangeQueryBounds(range);
+    getSessionsByDateRange(bounds.startIso, bounds.endExclusiveIso).then(setSessions);
   }, [period]);
 
   useEffect(() => {
@@ -61,6 +60,7 @@ export default function StatsScreen() {
   const completedCount = sessions.filter((s) => s.endAt != null).length;
   const hasMultipleRoles = analytics.roleStats.length >= 2;
   const totalMs = analytics.totalMs || 1;
+  const selectedRange = useMemo(() => getRollingRange(getPresetFromPeriod(period)), [period]);
 
   return (
     <EdgeToEdgeScreen
@@ -101,6 +101,15 @@ export default function StatsScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        <Text
+          style={{
+            ...TYPOGRAPHY.metadata,
+            color: hex.textTertiary,
+            marginBottom: 16,
+          }}
+        >
+          {selectedRange.label} · {selectedRange.displayRange}
+        </Text>
 
         {completedCount === 0 ? (
           <View
